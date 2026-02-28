@@ -1,0 +1,22 @@
+# Rust quality checks (equivalent to ruff + ruff-format + pytest for Python).
+# Run: pre-commit install
+# Requires: Rust toolchain (rustup), cargo fmt, cargo clippy
+repos:
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt
+        language: system
+        pass_filenames: false
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy -- -D warnings
+        language: system
+        pass_filenames: false
+      - id: cargo-test
+        name: cargo test
+        entry: cargo test
+        language: system
+        pass_filenames: false
+        always_run: true
