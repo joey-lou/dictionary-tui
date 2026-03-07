@@ -1,4 +1,8 @@
-"""Wordset dictionary source (StevensDeptECE/Dictionaries wordset-dictionary)."""
+"""Wordset dictionary source (StevensDeptECE/Dictionaries wordset-dictionary).
+
+Produces one ``HeadEntry`` per (word, part_of_speech).  Single-word headwords
+only; no phrases (Wordset is word-level).
+"""
 
 from __future__ import annotations
 
@@ -6,12 +10,11 @@ import json
 from pathlib import Path
 from typing import Iterator
 
-from ..models import DetailEntry
+from ..models import HeadEntry
 
 SHORT_DEF_MAX_CHARS = 100
 WORDSET_REPO_URL = "https://github.com/StevensDeptECE/Dictionaries.git"
 
-# Normalize speech_part to schema style (lowercase, common abbreviations).
 POS_NORMALIZE: dict[str, str] = {
     "adjective": "adj",
     "adverb": "adv",
@@ -37,8 +40,8 @@ def _is_single_word(word: str) -> bool:
     return bool(w) and " " not in w and w.isprintable()
 
 
-def parse_wordset_file(path: Path) -> Iterator[DetailEntry]:
-    """Parse one wordset data/*.json file; yield one DetailEntry per (word, part_of_speech)."""
+def parse_wordset_file(path: Path) -> Iterator[HeadEntry]:
+    """Parse one wordset ``data/*.json`` file; yield one ``HeadEntry`` per (word, POS)."""
     data = json.loads(path.read_text(encoding="utf-8"))
     for raw_head, obj in data.items():
         if not isinstance(obj, dict):
@@ -49,7 +52,6 @@ def parse_wordset_file(path: Path) -> Iterator[DetailEntry]:
         meanings = obj.get("meanings") or []
         if not meanings:
             continue
-        # Group definitions by normalized POS
         by_pos: dict[str, list[str]] = {}
         for m in meanings:
             if not isinstance(m, dict):
@@ -63,21 +65,19 @@ def parse_wordset_file(path: Path) -> Iterator[DetailEntry]:
             if len(short) > SHORT_DEF_MAX_CHARS:
                 short = short[: SHORT_DEF_MAX_CHARS - 3].rstrip() + "..."
             full = "\n".join(f"{i + 1}. {d}" for i, d in enumerate(defs))
-            yield DetailEntry(
+            yield HeadEntry(
                 headword=word,
                 sort_key=word.lower(),
                 leading_key=word,
                 pronunciation=None,
+                part_of_speech=pos,
                 short_definition=short or None,
                 full_definition=full or None,
-                part_of_speech=pos,
-                is_phrase=False,
-                phrases=None,
             )
 
 
-def iter_wordset_data(data_dir: Path, exclude_misc: bool = True) -> Iterator[DetailEntry]:
-    """Iterate all data/*.json in data_dir (excluding misc.json if exclude_misc)."""
+def iter_wordset_data(data_dir: Path, exclude_misc: bool = True) -> Iterator[HeadEntry]:
+    """Iterate all ``data/*.json`` in *data_dir* (excluding ``misc.json`` if *exclude_misc*)."""
     for path in sorted(data_dir.glob("*.json")):
         if exclude_misc and path.name.lower() == "misc.json":
             continue

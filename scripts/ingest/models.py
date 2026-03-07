@@ -1,12 +1,15 @@
-"""Shared data models for dictionary pack ingest scripts."""
+"""Shared data models for dictionary pack ingest scripts.
+
+Unified schema: every ``entries.jsonl`` line is a **head** entry (single word
+for EN, single character for ZH).  Multi-word/multi-char entries are stored
+as ``PhraseItem`` objects inside the head's ``phrases`` list and never appear
+as top-level index rows.
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Sequence
-
-# (form, definition) for a phrase under a head entry; matches Rust PhraseItem.
-PhraseItem = tuple[str, str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,21 +21,32 @@ class PackManifest:
     language: str
     sort: str
     entry_count: int
-    data_file: str
+    data_file: str = "entries.jsonl"
     license: Optional[str] = None
     source_url: Optional[str] = None
 
 
 @dataclass(frozen=True, slots=True)
-class DetailEntry:
-    """Entry payload for ``entries.jsonl`` compatible with the Rust schema."""
+class PhraseItem:
+    """One phrase/idiom nested under a head entry."""
+
+    form: str
+    definition: str
+
+
+@dataclass(frozen=True, slots=True)
+class HeadEntry:
+    """One index line in ``entries.jsonl``.
+
+    Represents exactly one (headword, pronunciation, part_of_speech) tuple.
+    Phrases and idioms are attached via ``phrases``, never as separate lines.
+    """
 
     headword: str
     sort_key: str
+    leading_key: str
     pronunciation: Optional[str]
+    part_of_speech: Optional[str]
     short_definition: Optional[str]
     full_definition: Optional[str]
-    part_of_speech: Optional[str] = None  # e.g. "noun", "verb", "adj", "adv"
-    leading_key: Optional[str] = None  # index key: EN = first word, ZH = first character
-    is_phrase: Optional[bool] = None  # true = phrase/词语; only heads written to pack, phrases in .phrases
-    phrases: Optional[Sequence[PhraseItem]] = None  # phrases under this head (form, definition); only on head entries
+    phrases: tuple[PhraseItem, ...] = field(default_factory=tuple)

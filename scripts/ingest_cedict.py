@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Build a Chinese dictionary pack from CC-CEDICT (pinyin index, searchable by pinyin).
+"""Build a Chinese–English dictionary pack from CC-CEDICT.
 
-CC-CEDICT provides English definitions. For Chinese-in-Chinese definitions, use a
-Wiktionary zh-based ingest when available.
+Unified structure: single-character entries become heads; multi-character
+entries become phrases grouped under the leading character.
 """
 
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from ingest.io_utils import write_pack
 from ingest.models import PackManifest
@@ -38,26 +41,9 @@ def parse_args() -> argparse.Namespace:
         help="Output pack directory.",
     )
     parser.add_argument(
-        "--max-entries",
-        type=int,
-        default=None,
-        metavar="N",
-        help="Maximum entries (default: no limit).",
-    )
-    parser.add_argument(
         "--traditional",
         action="store_true",
         help="Use traditional Chinese as headword (default: simplified).",
-    )
-    parser.add_argument(
-        "--pack-id",
-        default="cc-cedict",
-        help="Pack id for manifest.",
-    )
-    parser.add_argument(
-        "--pack-name",
-        default="CC-CEDICT (Chinese–English)",
-        help="Display name for manifest.",
     )
     return parser.parse_args()
 
@@ -67,13 +53,12 @@ def main() -> int:
     cache_path = Path(args.cache_file)
     output_dir = Path(args.output_dir)
 
-    if getattr(args, "source_file", None):
+    if args.source_file:
         source_path = Path(args.source_file)
         if not source_path.exists():
             raise SystemExit(f"Source file not found: {source_path}")
     else:
         source_path = download_source(args.source_url, cache_path)
-        # If the download returned HTML (redirect/error page), fail with clear instructions
         head = source_path.read_bytes()[:200]
         if head.startswith(b"<!") or head.startswith(b"<html"):
             source_path.unlink(missing_ok=True)
@@ -83,21 +68,17 @@ def main() -> int:
                 "https://www.mdbg.net/chinese/dictionary?page=cc-cedict and run:\n"
                 "  python3 scripts/ingest_cedict.py --source-file /path/to/cedict_*.txt.gz"
             )
-    entries = parse_file(
-        source_path,
-        use_simplified=not args.traditional,
-        max_entries=args.max_entries,
-    )
+
+    entries = parse_file(source_path, use_simplified=not args.traditional)
     if not entries:
         raise SystemExit("No entries parsed from CEDICT source.")
 
     manifest = PackManifest(
-        id=args.pack_id,
-        name=args.pack_name,
+        id="cc-cedict",
+        name="CC-CEDICT (中英)",
         language="zh",
         sort="pinyin",
         entry_count=len(entries),
-        data_file="entries.jsonl",
         license="CC BY-SA 4.0",
         source_url=args.source_url,
     )
