@@ -52,11 +52,15 @@ def write_pack(
 ) -> int:
     """Write a complete pack to *output_dir* and return entry count.
 
-    Sorts by ``(leading_key, sort_key)`` for prefix-tree grouping.
+    Pinyin packs sort by ``(sort_key, headword)``; others by
+    ``(leading_key, sort_key)``.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     entries_path = output_dir / manifest.data_file
-    sorted_entries = sorted(entries, key=lambda e: (e.leading_key, e.sort_key))
+    if manifest.sort == "pinyin":
+        sorted_entries = sorted(entries, key=lambda e: (e.sort_key, e.headword))
+    else:
+        sorted_entries = sorted(entries, key=lambda e: (e.leading_key, e.sort_key))
 
     with entries_path.open("w", encoding="utf-8") as fp:
         for entry in sorted_entries:
