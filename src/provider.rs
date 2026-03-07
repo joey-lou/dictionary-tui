@@ -294,9 +294,7 @@ impl Provider for LocalProvider {
         limit: usize,
     ) -> Result<Vec<ListEntry>, Box<dyn std::error::Error + Send + Sync>> {
         let end = (offset.saturating_add(limit as u64)).min(self.root_indices.len() as u64);
-        let indices: Vec<u64> = self.root_indices
-            [offset as usize..end as usize]
-            .to_vec();
+        let indices: Vec<u64> = self.root_indices[offset as usize..end as usize].to_vec();
         if indices.is_empty() {
             return Ok(Vec::new());
         }

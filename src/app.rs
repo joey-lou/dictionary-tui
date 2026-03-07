@@ -176,7 +176,8 @@ impl AppState {
         self.selected_idx = if self.current_entries.is_empty() {
             0
         } else {
-            self.selected_idx.min(self.current_entries.len().saturating_sub(1))
+            self.selected_idx
+                .min(self.current_entries.len().saturating_sub(1))
         };
         Ok(())
     }
@@ -262,12 +263,16 @@ impl AppState {
                 let root_idx = self.provider.root_index_for_entry(global_offset);
                 self.current_page = root_idx / page_size_u;
                 self.reload_page()?;
-                self.selected_idx = usize::try_from(root_idx % page_size_u).unwrap_or(0).min(self.current_entries.len().saturating_sub(1));
+                self.selected_idx = usize::try_from(root_idx % page_size_u)
+                    .unwrap_or(0)
+                    .min(self.current_entries.len().saturating_sub(1));
             }
             ViewMode::Expanded => {
                 self.current_page = global_offset / page_size_u;
                 self.reload_page()?;
-                self.selected_idx = usize::try_from(global_offset % page_size_u).unwrap_or(0).min(self.current_entries.len().saturating_sub(1));
+                self.selected_idx = usize::try_from(global_offset % page_size_u)
+                    .unwrap_or(0)
+                    .min(self.current_entries.len().saturating_sub(1));
             }
         }
         Ok(())
@@ -281,9 +286,7 @@ impl AppState {
                 let collapsed_index = self.current_page * page_size_u + self.selected_idx as u64;
                 self.provider.root_offset_at(collapsed_index)
             }
-            ViewMode::Expanded => {
-                self.current_page * page_size_u + self.selected_idx as u64
-            }
+            ViewMode::Expanded => self.current_page * page_size_u + self.selected_idx as u64,
         };
 
         self.view_mode = match self.view_mode {
@@ -504,7 +507,7 @@ fn render(frame: &mut ratatui::Frame<'_>, app: &AppState) {
                     app.increment_pages
                 ),
             )
-        },
+        }
         Screen::Detail => ("Esc back · q quit", String::new()),
         Screen::IncrementInput => (
             "Esc cancel · Enter set",
@@ -549,16 +552,16 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
             let head = if entry.headword.chars().count() > max_head_chars {
                 format!(
                     "{}…",
-                    entry.headword.chars().take(max_head_chars).collect::<String>()
+                    entry
+                        .headword
+                        .chars()
+                        .take(max_head_chars)
+                        .collect::<String>()
                 )
             } else {
                 entry.headword.clone()
             };
-            let pos_str = entry
-                .part_of_speech
-                .as_deref()
-                .unwrap_or("")
-                .to_string();
+            let pos_str = entry.part_of_speech.as_deref().unwrap_or("").to_string();
             let def_str = entry.short_definition.as_deref().unwrap_or("");
             let def: String = def_str.chars().take(def_max).collect();
             let def = if def_str.chars().count() > def_max {
@@ -693,18 +696,16 @@ fn handle_key(app: &mut AppState, code: KeyCode) -> AppResult<bool> {
                     }
                     KeyCode::Backspace => {
                         app.search_buffer.pop();
-                        if let Ok(Some(offset)) = app
-                            .provider
-                            .search_first_prefix(app.search_buffer.as_str())
+                        if let Ok(Some(offset)) =
+                            app.provider.search_first_prefix(app.search_buffer.as_str())
                         {
                             let _ = app.jump_to_offset(offset);
                         }
                     }
                     KeyCode::Char(c) => {
                         app.search_buffer.push(c);
-                        if let Ok(Some(offset)) = app
-                            .provider
-                            .search_first_prefix(app.search_buffer.as_str())
+                        if let Ok(Some(offset)) =
+                            app.provider.search_first_prefix(app.search_buffer.as_str())
                         {
                             let _ = app.jump_to_offset(offset);
                         }
