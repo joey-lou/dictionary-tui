@@ -7,5 +7,6 @@
 *.swo
 .rtw
 .cache
+tmp/
 __pycache__/
 *.pyc
