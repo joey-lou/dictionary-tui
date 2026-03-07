@@ -58,17 +58,64 @@ def _pinyin_sort_key(pinyin: str) -> str:
     return pinyin.lower().strip()
 
 
+_BENYI_POS_RE = re.compile(r"本义[:：]?\s*(\S*?(?:叹|数|名|代|副|量|助|连|介)词)")
+
+# Patterns like "啊á叹词" — character + pinyin + POS-word
+_INLINE_POS_RE = re.compile(
+    r"\S[a-zA-Zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜɡ]+\d?\s*"
+    r"(叹词|名词|动词|形容词|副词|数词|量词|代词|连词|介词|助词)"
+)
+
+_CI_TO_POS: dict[str, str] = {
+    "叹词": "叹",
+    "名词": "名",
+    "动词": "动",
+    "形容词": "形",
+    "副词": "副",
+    "数词": "数",
+    "量词": "量",
+    "代词": "代",
+    "连词": "连",
+    "介词": "介",
+    "助词": "助",
+}
+
+
 def _extract_pos(text: str) -> str | None:
-    """Extract grammar POS from 〈...〉 markers near the start of the text."""
+    """Extract grammar POS from the explanation text.
+
+    Checks (in priority order):
+    1. 〈名〉-style markers in first 50 chars
+    2. 本義 + POS-word in etymology (e.g. "本义叹词")
+    3. char+pinyin + POS-word (e.g. "啊á叹词")
+    """
+    # 1. Angle-bracket markers
     m = _POS_RE.search(text[:50])
-    if not m:
-        return None
-    raw = m.group(1).strip()
-    if raw in _GRAMMAR_POS:
-        return _GRAMMAR_POS[raw]
-    parts = _COMBINED_SEP.split(raw)
-    mapped = [_GRAMMAR_POS[p.strip()] for p in parts if p.strip() in _GRAMMAR_POS]
-    return "/".join(mapped) if mapped else None
+    if m:
+        raw = m.group(1).strip()
+        if raw in _GRAMMAR_POS:
+            return _GRAMMAR_POS[raw]
+        parts = _COMBINED_SEP.split(raw)
+        mapped = [_GRAMMAR_POS[p.strip()] for p in parts if p.strip() in _GRAMMAR_POS]
+        if mapped:
+            return "/".join(mapped)
+
+    # 2. 本义 + POS-word
+    m = _BENYI_POS_RE.search(text[:200])
+    if m:
+        ci = m.group(1)
+        for suffix, pos in _CI_TO_POS.items():
+            if ci.endswith(suffix):
+                return pos
+
+    # 3. Inline char+pinyin+POS-word
+    m = _INLINE_POS_RE.search(text[:200])
+    if m:
+        ci = m.group(1)
+        if ci in _CI_TO_POS:
+            return _CI_TO_POS[ci]
+
+    return None
 
 
 _LEADING_PINYIN_RE = re.compile(r"^[a-zA-ZüÜāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜɡ]+\d?\s+")

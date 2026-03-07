@@ -222,20 +222,4 @@ def parse_file(
             )
         )
 
-    # Create synthetic heads for leading characters that have phrases but no head
-    for char, items in phrase_bucket.items():
-        if char not in seen_leading and items:
-            heads.append(
-                HeadEntry(
-                    headword=char,
-                    sort_key=char,
-                    leading_key=char,
-                    pronunciation=None,
-                    part_of_speech=None,
-                    short_definition=f"(see {len(items)} compounds)",
-                    full_definition=None,
-                    phrases=tuple(items),
-                )
-            )
-
     return heads
