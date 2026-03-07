@@ -47,7 +47,7 @@ struct AppState {
     provider: LocalProvider,
     screen: Screen,
     page_size: usize,
-    current_page: u64,
+    scroll_offset: u64,
     selected_idx: usize,
     current_entries: Vec<ListEntry>,
     view_mode: ViewMode,
@@ -106,7 +106,7 @@ impl AppState {
             provider,
             screen: Screen::List,
             page_size: 15,
-            current_page: 0,
+            scroll_offset: 0,
             selected_idx: 0,
             current_entries: Vec::new(),
             view_mode: ViewMode::Collapsed,
@@ -137,7 +137,11 @@ impl AppState {
     }
 
     const fn offset(&self) -> u64 {
-        self.current_page.saturating_mul(self.page_size as u64)
+        self.scroll_offset
+    }
+
+    const fn display_page(&self) -> u64 {
+        self.scroll_offset / self.page_size as u64 + 1
     }
 
     fn view_entry_count(&self) -> u64 {
@@ -182,7 +186,13 @@ impl AppState {
             self.selected_idx += 1;
             return Ok(());
         }
-        self.next_page()
+        let total = self.view_entry_count();
+        if self.scroll_offset + (self.current_entries.len() as u64) < total {
+            self.scroll_offset += 1;
+            self.reload_page()?;
+            self.selected_idx = self.current_entries.len().saturating_sub(1);
+        }
+        Ok(())
     }
 
     fn move_prev_row(&mut self) -> AppResult<()> {
@@ -190,43 +200,43 @@ impl AppState {
             self.selected_idx -= 1;
             return Ok(());
         }
-        if self.current_page > 0 {
-            self.current_page -= 1;
+        if self.scroll_offset > 0 {
+            self.scroll_offset -= 1;
             self.reload_page()?;
-            if !self.current_entries.is_empty() {
-                self.selected_idx = self.current_entries.len().saturating_sub(1);
-            }
         }
         Ok(())
     }
 
     fn next_page(&mut self) -> AppResult<()> {
-        let page_count = self.page_count();
-        if self.current_page + self.increment_pages < page_count {
-            self.current_page += self.increment_pages;
-        } else {
-            self.current_page = page_count.saturating_sub(1);
+        let jump = self.page_size as u64 * self.increment_pages;
+        let total = self.view_entry_count();
+        if total == 0 {
+            return Ok(());
         }
+        let max_offset = total.saturating_sub(1);
+        self.scroll_offset = (self.scroll_offset + jump).min(max_offset);
         self.selected_idx = 0;
         self.reload_page()
     }
 
     fn prev_page(&mut self) -> AppResult<()> {
-        self.current_page = self.current_page.saturating_sub(self.increment_pages);
+        let jump = self.page_size as u64 * self.increment_pages;
+        self.scroll_offset = self.scroll_offset.saturating_sub(jump);
         self.selected_idx = 0;
         self.reload_page()
     }
 
     fn random_page(&mut self) -> AppResult<()> {
-        let page_count = self.page_count();
-        if page_count <= 1 {
+        let total = self.view_entry_count();
+        if total <= 1 {
             return Ok(());
         }
         let seed = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs() ^ u64::from(d.subsec_nanos()))
             .unwrap_or(0);
-        self.current_page = seed % page_count;
+        let max_offset = total.saturating_sub(self.page_size as u64).max(1);
+        self.scroll_offset = seed % max_offset;
         self.reload_page()?;
         let n = self.current_entries.len();
         if n > 0 {
@@ -251,20 +261,20 @@ impl AppState {
     }
 
     fn jump_to_offset(&mut self, global_offset: u64) -> AppResult<()> {
-        let page_size_u = self.page_size as u64;
+        let ps = self.page_size as u64;
         match self.view_mode {
             ViewMode::Collapsed => {
                 let root_idx = self.provider.root_index_for_entry(global_offset);
-                self.current_page = root_idx / page_size_u;
+                self.scroll_offset = (root_idx / ps) * ps;
                 self.reload_page()?;
-                self.selected_idx = usize::try_from(root_idx % page_size_u)
+                self.selected_idx = usize::try_from(root_idx - self.scroll_offset)
                     .unwrap_or(0)
                     .min(self.current_entries.len().saturating_sub(1));
             }
             ViewMode::Expanded => {
-                self.current_page = global_offset / page_size_u;
+                self.scroll_offset = (global_offset / ps) * ps;
                 self.reload_page()?;
-                self.selected_idx = usize::try_from(global_offset % page_size_u)
+                self.selected_idx = usize::try_from(global_offset - self.scroll_offset)
                     .unwrap_or(0)
                     .min(self.current_entries.len().saturating_sub(1));
             }
@@ -273,13 +283,13 @@ impl AppState {
     }
 
     fn toggle_view_mode(&mut self) -> AppResult<()> {
-        let page_size_u = self.page_size as u64;
+        let visual_row = self.selected_idx as u64;
         let global_offset = match self.view_mode {
             ViewMode::Collapsed => {
-                let collapsed_index = self.current_page * page_size_u + self.selected_idx as u64;
+                let collapsed_index = self.scroll_offset + self.selected_idx as u64;
                 self.provider.root_offset_at(collapsed_index)
             }
-            ViewMode::Expanded => self.current_page * page_size_u + self.selected_idx as u64,
+            ViewMode::Expanded => self.scroll_offset + self.selected_idx as u64,
         };
 
         self.view_mode = match self.view_mode {
@@ -287,23 +297,25 @@ impl AppState {
             ViewMode::Expanded => ViewMode::Collapsed,
         };
 
+        let total = self.view_entry_count();
+        let max_offset = total.saturating_sub(1);
+
         match self.view_mode {
             ViewMode::Collapsed => {
                 let root_index = self.provider.root_index_for_entry(global_offset);
-                self.current_page = root_index / page_size_u;
+                self.scroll_offset = root_index.saturating_sub(visual_row).min(max_offset);
                 self.reload_page()?;
-                let n = self.current_entries.len();
-                self.selected_idx = usize::try_from(root_index % page_size_u)
+                self.selected_idx = usize::try_from(root_index.saturating_sub(self.scroll_offset))
                     .unwrap_or(0)
-                    .min(n.saturating_sub(1));
+                    .min(self.current_entries.len().saturating_sub(1));
             }
             ViewMode::Expanded => {
-                self.current_page = global_offset / page_size_u;
+                self.scroll_offset = global_offset.saturating_sub(visual_row).min(max_offset);
                 self.reload_page()?;
-                let n = self.current_entries.len();
-                self.selected_idx = usize::try_from(global_offset % page_size_u)
-                    .unwrap_or(0)
-                    .min(n.saturating_sub(1));
+                self.selected_idx =
+                    usize::try_from(global_offset.saturating_sub(self.scroll_offset))
+                        .unwrap_or(0)
+                        .min(self.current_entries.len().saturating_sub(1));
             }
         }
         Ok(())
@@ -490,7 +502,7 @@ fn render(frame: &mut ratatui::Frame<'_>, app: &AppState) {
                 "q quit \u{00b7} Space collapse/expand \u{00b7} Enter detail \u{00b7} / search \u{00b7} r random \u{00b7} +/- jump",
                 format!(
                     "Page {} of {} \u{00b7} {} {} \u{00b7} jump {}",
-                    app.current_page + 1,
+                    app.display_page(),
                     app.page_count(),
                     total,
                     label,
@@ -503,7 +515,7 @@ fn render(frame: &mut ratatui::Frame<'_>, app: &AppState) {
             "Esc cancel \u{00b7} Enter set",
             format!(
                 "Page {} of {} \u{00b7} jump {}",
-                app.current_page + 1,
+                app.display_page(),
                 app.page_count(),
                 app.increment_pages
             ),
@@ -597,7 +609,7 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
                     let root_idx = page_global_offset + local_idx as u64;
                     let gsz = app.provider.group_size(root_idx);
                     if gsz > 1 {
-                        "- "
+                        "\u{25B8} "
                     } else {
                         "  "
                     }
@@ -610,9 +622,11 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
                     if gsz <= 1 {
                         "  "
                     } else if global_idx == root_offset {
-                        "+ "
+                        "\u{25BE} "
+                    } else if global_idx == root_offset + gsz as u64 - 1 {
+                        "\u{2514}\u{2500}"
                     } else {
-                        "  "
+                        "\u{251C}\u{2500}"
                     }
                 }
             };
