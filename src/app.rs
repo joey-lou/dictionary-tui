@@ -609,7 +609,7 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
                     let root_idx = page_global_offset + local_idx as u64;
                     let gsz = app.provider.group_size(root_idx);
                     if gsz > 1 {
-                        "+ "
+                        "\u{25B8} "
                     } else {
                         "  "
                     }
@@ -622,9 +622,11 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
                     if gsz <= 1 {
                         "  "
                     } else if global_idx == root_offset {
-                        "- "
+                        "\u{25BE} "
+                    } else if global_idx == root_offset + gsz as u64 - 1 {
+                        "\u{2514}\u{2500}"
                     } else {
-                        "|-"
+                        "\u{251C}\u{2500}"
                     }
                 }
             };
