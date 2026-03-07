@@ -3,91 +3,79 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable, Sequence
 
-from .models import DetailEntry, PackManifest, PhraseItem
+from .models import HeadEntry, PackManifest, PhraseItem
 
 
-def collapse_phrases_into_heads(entries: Iterable[DetailEntry]) -> List[DetailEntry]:
+def merge_phrases_into_heads(
+    heads: Iterable[HeadEntry],
+    phrases: Iterable[PhraseItem],
+    leading_key_fn: callable,
+) -> list[HeadEntry]:
+    """Attach *phrases* to matching heads by ``leading_key_fn(phrase.form)``.
+
+    ``leading_key_fn`` extracts the grouping key from a phrase form
+    (e.g. first word for EN, first character for ZH).  Phrases whose
+    leading key has no matching head are dropped.
     """
-    Keep only head entries (is_phrase=False); attach phrase entries (is_phrase=True)
-    to the matching head's `phrases` list. Index = single word/字 only; phrases
-    are nested under the head, not separate lines.
-    """
-    heads: List[DetailEntry] = []
-    phrase_list: List[DetailEntry] = []
-    for e in entries:
-        if getattr(e, "is_phrase", False):
-            phrase_list.append(e)
-        else:
-            heads.append(e)
+    from collections import defaultdict
 
-    key = lambda e: (_leading_key(e) or "", getattr(e, "part_of_speech") or "")
-    phrase_by_key: dict[tuple[str, str], list[DetailEntry]] = {}
-    for p in phrase_list:
-        k = key(p)
-        phrase_by_key.setdefault(k, []).append(p)
+    bucket: dict[str, list[PhraseItem]] = defaultdict(list)
+    for p in phrases:
+        bucket[leading_key_fn(p.form)].append(p)
 
-    out: List[DetailEntry] = []
+    out: list[HeadEntry] = []
     for h in heads:
-        k = key(h)
-        matching = phrase_by_key.get(k, [])
-        phrase_items: List[PhraseItem] = [
-            (p.headword, (p.short_definition or p.full_definition or "").strip())
-            for p in matching
-        ]
-        new_entry = DetailEntry(
-            headword=h.headword,
-            sort_key=h.sort_key,
-            pronunciation=h.pronunciation,
-            short_definition=h.short_definition,
-            full_definition=h.full_definition,
-            part_of_speech=h.part_of_speech,
-            leading_key=getattr(h, "leading_key", None),
-            is_phrase=False,
-            phrases=tuple(phrase_items) if phrase_items else None,
-        )
-        out.append(new_entry)
+        matching = bucket.get(h.leading_key, ())
+        merged_phrases = (*h.phrases, *matching) if matching else h.phrases
+        if merged_phrases != h.phrases:
+            h = HeadEntry(
+                headword=h.headword,
+                sort_key=h.sort_key,
+                leading_key=h.leading_key,
+                pronunciation=h.pronunciation,
+                part_of_speech=h.part_of_speech,
+                short_definition=h.short_definition,
+                full_definition=h.full_definition,
+                phrases=tuple(merged_phrases),
+            )
+        out.append(h)
     return out
 
 
-def _leading_key(entry: DetailEntry) -> str:
-    """First token of sort_key for prefix-tree grouping (word-level)."""
-    return (
-        getattr(entry, "leading_key", None)
-        or (entry.sort_key.split()[0] if entry.sort_key.strip() else "")
-    )
+def write_pack(
+    output_dir: Path,
+    manifest: PackManifest,
+    entries: Iterable[HeadEntry],
+) -> int:
+    """Write a complete pack to *output_dir* and return entry count.
 
-
-def write_pack(output_dir: Path, manifest: PackManifest, entries: Iterable[DetailEntry]) -> int:
-    """Write a complete pack to ``output_dir`` and return entry count. Sorts by (leading_key, sort_key) for prefix-tree grouping."""
+    Sorts by ``(leading_key, sort_key)`` for prefix-tree grouping.
+    """
     output_dir.mkdir(parents=True, exist_ok=True)
     entries_path = output_dir / manifest.data_file
-    sorted_entries = sorted(
-        entries,
-        key=lambda e: (_leading_key(e), e.sort_key),
-    )
+    sorted_entries = sorted(entries, key=lambda e: (e.leading_key, e.sort_key))
 
     with entries_path.open("w", encoding="utf-8") as fp:
         for entry in sorted_entries:
-            lead = _leading_key(entry)
-            payload = {
+            payload: dict = {
                 "headword": entry.headword,
                 "sort_key": entry.sort_key,
+                "leading_key": entry.leading_key,
                 "pronunciation": entry.pronunciation,
                 "short_definition": entry.short_definition,
                 "full_definition": entry.full_definition,
             }
-            if lead:
-                payload["leading_key"] = lead
-            if getattr(entry, "is_phrase", None) is not None:
-                payload["is_phrase"] = entry.is_phrase
-            if getattr(entry, "part_of_speech", None) is not None:
+            if entry.part_of_speech is not None:
                 payload["part_of_speech"] = entry.part_of_speech
-            phrases = getattr(entry, "phrases", None)
-            if phrases:
-                payload["phrases"] = [{"form": f, "definition": d} for f, d in phrases]
+            if entry.phrases:
+                payload["phrases"] = [
+                    {"form": p.form, "definition": p.definition}
+                    for p in entry.phrases
+                ]
             fp.write(json.dumps(payload, ensure_ascii=False))
             fp.write("\n")
 

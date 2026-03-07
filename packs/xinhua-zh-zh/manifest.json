@@ -1,0 +1,10 @@
+{
+  "id": "xinhua-zh-zh",
+  "name": "新华字典 Xinhua (中中)",
+  "language": "zh",
+  "sort": "pinyin",
+  "entry_count": 16703,
+  "data_file": "entries.jsonl",
+  "license": "MIT",
+  "source_url": "https://github.com/pwxcoo/chinese-xinhua"
+}

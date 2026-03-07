@@ -17,10 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from ingest.io_utils import write_pack
 from ingest.models import PackManifest
-from ingest.sources.wordset import (
-    WORDSET_REPO_URL,
-    iter_wordset_data,
-)
+from ingest.sources.wordset import WORDSET_REPO_URL, iter_wordset_data
 
 
 def get_data_dir(source: Path | None, cache_dir: Path) -> Path:
