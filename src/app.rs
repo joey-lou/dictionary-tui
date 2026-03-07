@@ -23,28 +23,16 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 type AppResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 const INCREMENT_PRESETS: [u64; 6] = [1, 2, 5, 10, 50, 100];
-const HEADWORD_WIDTH: usize = 24;
-const POS_WIDTH: usize = 6;
-
-/// Leading key for grouping (first word/syllable of `sort_key`).
-fn entry_leading_key(entry: &ListEntry) -> &str {
-    entry
-        .leading_key
-        .as_deref()
-        .unwrap_or_else(|| entry.sort_key.split_whitespace().next().unwrap_or(""))
-}
-
-fn is_compound(entry: &ListEntry) -> bool {
-    entry
-        .is_phrase
-        .unwrap_or_else(|| entry.sort_key.contains(' '))
-}
+const HEADWORD_COL: usize = 16;
+const PRON_COL: usize = 12;
+const POS_COL: usize = 6;
+const INDICATOR_COL: usize = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ViewMode {
-    /// Only root entries (one per `leading_key`); fewer pages.
+    /// One row per unique headword; variants are hidden.
     Collapsed,
-    /// All entries; full page count.
+    /// All entries; group headers marked, variants indented.
     Expanded,
 }
 
@@ -62,12 +50,10 @@ struct AppState {
     current_page: u64,
     selected_idx: usize,
     current_entries: Vec<ListEntry>,
-    /// Collapsed = page over roots only; Expanded = page over all entries. Page count and indices depend on this.
     view_mode: ViewMode,
     increment_pages: u64,
     increment_preset_idx: usize,
     increment_input: String,
-    /// Inline search: buffer and active flag. When true, typing filters list to first prefix match.
     search_buffer: String,
     search_active: bool,
 }
@@ -154,7 +140,6 @@ impl AppState {
         self.current_page.saturating_mul(self.page_size as u64)
     }
 
-    /// Entry count for the current view (roots only or all).
     fn view_entry_count(&self) -> u64 {
         match self.view_mode {
             ViewMode::Collapsed => self.provider.root_count(),
@@ -162,9 +147,19 @@ impl AppState {
         }
     }
 
-    /// Selected entry on the current page, or None.
     fn selected_entry(&self) -> Option<&ListEntry> {
         self.current_entries.get(self.selected_idx)
+    }
+
+    /// Global sorted index of the currently selected entry.
+    fn selected_global_index(&self) -> u64 {
+        match self.view_mode {
+            ViewMode::Collapsed => {
+                let root_idx = self.offset() + self.selected_idx as u64;
+                self.provider.root_offset_at(root_idx)
+            }
+            ViewMode::Expanded => self.offset() + self.selected_idx as u64,
+        }
     }
 
     fn reload_page(&mut self) -> AppResult<()> {
@@ -255,7 +250,6 @@ impl AppState {
         self.increment_pages = INCREMENT_PRESETS[self.increment_preset_idx];
     }
 
-    /// Jump to the entry at the given global offset (0-based). In collapsed view, maps to the root that contains it.
     fn jump_to_offset(&mut self, global_offset: u64) -> AppResult<()> {
         let page_size_u = self.page_size as u64;
         match self.view_mode {
@@ -278,7 +272,6 @@ impl AppState {
         Ok(())
     }
 
-    /// Toggle between collapsed (roots only) and expanded (all entries). Keeps focus on the same word/location.
     fn toggle_view_mode(&mut self) -> AppResult<()> {
         let page_size_u = self.page_size as u64;
         let global_offset = match self.view_mode {
@@ -337,7 +330,6 @@ impl Drop for TerminalGuard {
     }
 }
 
-/// Runs the full TUI loop and returns when the user exits.
 pub fn run() -> AppResult<()> {
     let packs = discover_packs()?;
     if packs.is_empty() {
@@ -440,7 +432,7 @@ fn render_pack_picker(frame: &mut ratatui::Frame<'_>, picker: &PackPickerState) 
         .iter()
         .map(|(_, manifest)| {
             let label = format!(
-                "{} [{}] • {} entries",
+                "{} [{}] \u{2022} {} entries",
                 manifest.name, manifest.language, manifest.entry_count
             );
             ListItem::new(Line::from(label))
@@ -472,12 +464,12 @@ fn render(frame: &mut ratatui::Frame<'_>, app: &AppState) {
 
     let hints = match app.screen {
         Screen::List => {
-            "↑↓ j/k move · Enter detail · Space expand/collapse · / search · ←→ pg · r random · +/- jump · i custom · q quit"
+            "\u{2191}\u{2193} j/k move \u{00b7} Enter detail \u{00b7} Space expand/collapse \u{00b7} / search \u{00b7} \u{2190}\u{2192} pg \u{00b7} r random \u{00b7} +/- jump \u{00b7} i custom \u{00b7} q quit"
         }
-        Screen::Detail => "Esc/Backspace back · q quit",
-        Screen::IncrementInput => "Enter set jump · Esc cancel",
+        Screen::Detail => "Esc/Backspace back \u{00b7} q quit",
+        Screen::IncrementInput => "Enter set jump \u{00b7} Esc cancel",
     };
-    let title = format!(" dictionary-tui · {} ", app.provider.metadata().name);
+    let title = format!(" dictionary-tui \u{00b7} {} ", app.provider.metadata().name);
     let header =
         Paragraph::new(hints).block(Block::default().borders(Borders::BOTTOM).title(title));
     frame.render_widget(header, header_area);
@@ -491,13 +483,13 @@ fn render(frame: &mut ratatui::Frame<'_>, app: &AppState) {
         Screen::List => {
             let total = app.view_entry_count();
             let label = match app.view_mode {
-                ViewMode::Collapsed => "roots",
+                ViewMode::Collapsed => "words",
                 ViewMode::Expanded => "entries",
             };
             (
-                "q quit · Space collapse/expand · Enter detail · / search · r random · +/- jump",
+                "q quit \u{00b7} Space collapse/expand \u{00b7} Enter detail \u{00b7} / search \u{00b7} r random \u{00b7} +/- jump",
                 format!(
-                    "Page {} of {} · {} {} · jump {}",
+                    "Page {} of {} \u{00b7} {} {} \u{00b7} jump {}",
                     app.current_page + 1,
                     app.page_count(),
                     total,
@@ -506,11 +498,11 @@ fn render(frame: &mut ratatui::Frame<'_>, app: &AppState) {
                 ),
             )
         }
-        Screen::Detail => ("Esc back · q quit", String::new()),
+        Screen::Detail => ("Esc back \u{00b7} q quit", String::new()),
         Screen::IncrementInput => (
-            "Esc cancel · Enter set",
+            "Esc cancel \u{00b7} Enter set",
             format!(
-                "Page {} of {} · jump {}",
+                "Page {} of {} \u{00b7} jump {}",
                 app.current_page + 1,
                 app.page_count(),
                 app.increment_pages
@@ -520,57 +512,81 @@ fn render(frame: &mut ratatui::Frame<'_>, app: &AppState) {
     let footer_line = if page_info.is_empty() {
         footer_text.to_string()
     } else {
-        format!("{page_info}  │  {footer_text}")
+        format!("{page_info}  \u{2502}  {footer_text}")
     };
     let footer = Paragraph::new(footer_line).block(Block::default().borders(Borders::TOP));
     frame.render_widget(footer, footer_area);
 }
 
+/// Truncate a string to at most `max_chars` characters, appending "…" if truncated.
+fn truncate_str(s: &str, max_chars: usize) -> String {
+    let char_count = s.chars().count();
+    if char_count <= max_chars {
+        s.to_string()
+    } else {
+        let truncated: String = s.chars().take(max_chars.saturating_sub(1)).collect();
+        format!("{truncated}\u{2026}")
+    }
+}
+
+/// Format a list row with unified columns.
+fn format_list_row(indicator: &str, entry: &ListEntry, def_max: usize) -> String {
+    let head = truncate_str(&entry.headword, HEADWORD_COL.saturating_sub(1));
+    let pron = truncate_str(
+        entry.pronunciation.as_deref().unwrap_or(""),
+        PRON_COL.saturating_sub(1),
+    );
+    let pos = entry.part_of_speech.as_deref().unwrap_or("");
+    let def = truncate_str(entry.short_definition.as_deref().unwrap_or(""), def_max);
+    format!(
+        "{indicator:<INDICATOR_COL$}{head:<HEADWORD_COL$} {pron:<PRON_COL$} {pos:<POS_COL$} {def}"
+    )
+}
+
 fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app: &AppState) {
-    let col_reserved = HEADWORD_WIDTH + POS_WIDTH + 2;
+    let fixed_cols = INDICATOR_COL + HEADWORD_COL + 1 + PRON_COL + 1 + POS_COL + 1;
     let def_max = area
         .width
-        .saturating_sub(u16::try_from(col_reserved).unwrap_or(32))
-        .max(10) as usize;
+        .saturating_sub(u16::try_from(fixed_cols).unwrap_or(40))
+        .max(8) as usize;
 
     let entries = &app.current_entries;
     let mut items = Vec::with_capacity(entries.len().max(1));
+
     if entries.is_empty() {
         items.push(ListItem::new("No entries on this page"));
     } else {
-        let max_head_chars = HEADWORD_WIDTH.saturating_sub(3);
-        let mut prev_leading: Option<&str> = None;
-        let show_tree = matches!(app.view_mode, ViewMode::Expanded);
-        for entry in entries {
-            let leading = entry_leading_key(entry);
-            let compound = is_compound(entry);
-            let indent = show_tree && prev_leading == Some(leading) && compound;
-            prev_leading = Some(leading);
+        let page_global_offset = app.offset();
 
-            let head = if entry.headword.chars().count() > max_head_chars {
-                format!(
-                    "{}…",
-                    entry
-                        .headword
-                        .chars()
-                        .take(max_head_chars)
-                        .collect::<String>()
-                )
-            } else {
-                entry.headword.clone()
+        for (local_idx, entry) in entries.iter().enumerate() {
+            let indicator = match app.view_mode {
+                ViewMode::Collapsed => {
+                    // In collapsed view, each entry is a root. Show "-" if group has >1 entries.
+                    let root_idx = page_global_offset + local_idx as u64;
+                    let gsz = app.provider.group_size(root_idx);
+                    if gsz > 1 {
+                        "- "
+                    } else {
+                        "  "
+                    }
+                }
+                ViewMode::Expanded => {
+                    // Determine if this entry is a group header or a variant.
+                    let global_idx = page_global_offset + local_idx as u64;
+                    let root_idx = app.provider.root_index_for_entry(global_idx);
+                    let root_offset = app.provider.root_offset_at(root_idx);
+                    let gsz = app.provider.group_size(root_idx);
+                    if gsz <= 1 {
+                        "  "
+                    } else if global_idx == root_offset {
+                        "+ "
+                    } else {
+                        "  "
+                    }
+                }
             };
-            let pos_str = entry.part_of_speech.as_deref().unwrap_or("").to_string();
-            let def_str = entry.short_definition.as_deref().unwrap_or("");
-            let def: String = def_str.chars().take(def_max).collect();
-            let def = if def_str.chars().count() > def_max {
-                format!("{}…", def.trim_end())
-            } else {
-                def
-            };
-            let prefix = if indent { " ·" } else { "  " };
-            let trimmed_def = def.trim_start();
-            let line =
-                format!("{prefix:<2} {head:<HEADWORD_WIDTH$} {pos_str:<POS_WIDTH$} {trimmed_def}");
+
+            let line = format_list_row(indicator, entry, def_max);
             items.push(ListItem::new(Line::from(line)));
         }
     }
@@ -584,7 +600,7 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
     } else if app.search_active {
         " Search: (type to filter) ".to_string()
     } else {
-        format!(" Entries · {view_label} ")
+        format!(" Entries \u{00b7} {view_label} ")
     };
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL).title(list_title))
@@ -609,14 +625,15 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
 }
 
 fn render_detail(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app: &AppState) {
-    let Some(selected) = app.selected_entry() else {
+    if app.selected_entry().is_none() {
         let missing = Paragraph::new("No selected entry")
             .block(Block::default().borders(Borders::ALL).title("Detail"));
         frame.render_widget(missing, area);
         return;
-    };
+    }
 
-    let detail = app.provider.get_detail(&selected.headword).ok().flatten();
+    let global_idx = app.selected_global_index();
+    let detail = app.provider.get_detail(global_idx).ok().flatten();
     let text = if let Some(detail) = detail {
         let mut lines = vec![format!("Headword: {}", detail.headword)];
         if let Some(pos) = &detail.part_of_speech {
@@ -631,16 +648,9 @@ fn render_detail(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, ap
                 .full_definition
                 .unwrap_or_else(|| "(none)".to_string()),
         );
-        if let Some(phrases) = detail.phrases {
-            lines.push(String::new());
-            lines.push("Phrases:".to_string());
-            for phrase in phrases {
-                lines.push(format!("- {}: {}", phrase.form, phrase.definition));
-            }
-        }
         lines.join("\n")
     } else {
-        "Detail not found for selected headword.".to_string()
+        "Detail not found for selected entry.".to_string()
     };
 
     let paragraph = Paragraph::new(text)
