@@ -1,6 +1,6 @@
 # Data sources
 
-Reference for the three dictionary data sources used to build packs. The unified pack schema is defined in `scripts/ingest/models.py` (Python) and `src/schema.rs` (Rust).
+Reference for the three dictionary data sources used to build packs. The unified pack schema is defined in `py/ingest/models.py` (Python) and `src/schema.rs` (Rust).
 
 ---
 
@@ -22,7 +22,7 @@ Reference for the three dictionary data sources used to build packs. The unified
 
 **Pack mapping:** One `HeadEntry` per (word, POS). `short_definition` = first def (≤100 chars). `full_definition` = numbered list. No pronunciation (source lacks IPA).
 
-**Ingest:** `python3 scripts/ingest_wordset.py`
+**Ingest:** `python3 py/ingest_wordset.py`
 
 ---
 
@@ -40,7 +40,7 @@ Reference for the three dictionary data sources used to build packs. The unified
 
 **Pack mapping:** `word.json` → head entries (single characters). `idiom.json` + `ci.json` → phrases grouped under leading character. Pinyin from `word.json` and `idiom.json`; `ci.json` lacks pinyin.
 
-**Ingest:** `python3 scripts/ingest_xinhua.py`
+**Ingest:** `python3 py/ingest_xinhua.py`
 
 ---
 
@@ -54,7 +54,7 @@ Reference for the three dictionary data sources used to build packs. The unified
 
 **Pack mapping:** Single-character entries → heads. Multi-character entries → phrases under leading character with `[pinyin] definition` format. POS inferred from definition text (e.g. "to …" → verb).
 
-**Ingest:** `python3 scripts/ingest_cedict.py`
+**Ingest:** `python3 py/ingest_cedict.py`
 
 ---
 

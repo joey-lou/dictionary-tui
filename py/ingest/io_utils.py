@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, Sequence
 
 from .models import HeadEntry, PackManifest, PhraseItem
 
@@ -72,10 +71,7 @@ def write_pack(
             if entry.part_of_speech is not None:
                 payload["part_of_speech"] = entry.part_of_speech
             if entry.phrases:
-                payload["phrases"] = [
-                    {"form": p.form, "definition": p.definition}
-                    for p in entry.phrases
-                ]
+                payload["phrases"] = [{"form": p.form, "definition": p.definition} for p in entry.phrases]
             fp.write(json.dumps(payload, ensure_ascii=False))
             fp.write("\n")
 

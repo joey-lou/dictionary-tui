@@ -9,7 +9,6 @@ as top-level index rows.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,8 +21,8 @@ class PackManifest:
     sort: str
     entry_count: int
     data_file: str = "entries.jsonl"
-    license: Optional[str] = None
-    source_url: Optional[str] = None
+    license: str | None = None
+    source_url: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,8 +44,8 @@ class HeadEntry:
     headword: str
     sort_key: str
     leading_key: str
-    pronunciation: Optional[str]
-    part_of_speech: Optional[str]
-    short_definition: Optional[str]
-    full_definition: Optional[str]
+    pronunciation: str | None
+    part_of_speech: str | None
+    short_definition: str | None
+    full_definition: str | None
     phrases: tuple[PhraseItem, ...] = field(default_factory=tuple)

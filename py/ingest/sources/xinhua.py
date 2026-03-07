@@ -71,9 +71,12 @@ def parse_xinhua(
         if not explanation:
             continue
 
-        lines = [l.strip() for l in explanation.replace("；", "\n").split("\n") if l.strip()]
+        lines = [part.strip() for part in explanation.replace("；", "\n").split("\n") if part.strip()]
         short = _short(lines[0]) if lines else explanation[:_SHORT_DEF_MAX]
-        full = "\n".join(f"{i + 1}. {l}" for i, l in enumerate(lines)) if len(lines) > 1 else lines[0] if lines else explanation
+        if len(lines) > 1:
+            full = "\n".join(f"{i + 1}. {part}" for i, part in enumerate(lines))
+        else:
+            full = lines[0] if lines else explanation
 
         heads.append(
             HeadEntry(

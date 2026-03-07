@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Script runs from repo root; ingest is in scripts/
+# Ensure py/ is on sys.path so `ingest` package is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from ingest.io_utils import write_pack
