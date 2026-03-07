@@ -3,7 +3,7 @@
   "name": "CC-CEDICT (中英)",
   "language": "zh",
   "sort": "pinyin",
-  "entry_count": 13198,
+  "entry_count": 13179,
   "data_file": "entries.jsonl",
   "license": "CC BY-SA 4.0",
   "source_url": "https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz"

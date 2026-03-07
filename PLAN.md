@@ -101,11 +101,12 @@ Every `entries.jsonl` line is a **head entry** — one per (headword, pronunciat
 
 ## 4. Current Packs
 
-| Pack ID | Source | Language | Heads | Phrases |
-|---------|--------|----------|-------|---------|
-| `wordset-en` | [Wordset](https://github.com/StevensDeptECE/Dictionaries) | EN | 77K | — |
-| `xinhua-zh-zh` | [chinese-xinhua](https://github.com/pwxcoo/chinese-xinhua) | ZH (中中) | 17K | 295K |
-| `cc-cedict` | [CC-CEDICT](https://cc-cedict.org/) | ZH-EN (中英) | 13K | 102K |
+| Pack ID | Source | Language | Heads | POS | Pron. |
+|---------|--------|----------|-------|-----|-------|
+| `webster1913-en` | [Webster's 1913](https://www.gutenberg.org/ebooks/29765) | EN | 109K | 96% | 96% |
+| `wordset-en` | [Wordset](https://github.com/StevensDeptECE/Dictionaries) | EN | 77K | ✓ | ✗ |
+| `xinhua-zh-zh` | [chinese-xinhua](https://github.com/pwxcoo/chinese-xinhua) | ZH (中中) | 17K | 9% | ✓ |
+| `cc-cedict` | [CC-CEDICT](https://cc-cedict.org/) | ZH-EN (中英) | 13K | partial | ✓ |
 
 ---
 
@@ -132,6 +133,7 @@ dictionary-tui/
 │   ├── schema.rs           # ListEntry, DetailEntry, PhraseItem, PackManifest
 │   └── config.rs           # User configuration
 ├── packs/                  # Bundled dictionary packs
+│   ├── webster1913-en/
 │   ├── wordset-en/
 │   ├── xinhua-zh-zh/
 │   └── cc-cedict/
@@ -140,6 +142,7 @@ dictionary-tui/
 │   │   ├── models.py       # HeadEntry, PhraseItem, PackManifest
 │   │   ├── io_utils.py     # write_pack, merge helpers
 │   │   └── sources/        # Per-source parsers
+│   ├── ingest_webster1913.py # Webster's 1913 EN ingest CLI
 │   ├── ingest_wordset.py   # Wordset EN ingest CLI
 │   ├── ingest_xinhua.py    # Xinhua ZH-ZH ingest CLI
 │   └── ingest_cedict.py    # CC-CEDICT ZH-EN ingest CLI

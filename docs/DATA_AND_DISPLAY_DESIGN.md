@@ -4,71 +4,76 @@ Unified data structure and UI design across all languages.
 
 ---
 
-## 1. List Record Shape
+## 1. Entry Schema
 
-One row per `(headword, pronunciation, part_of_speech)`:
+One JSONL line per `(headword, pronunciation, part_of_speech)` tuple:
 
-| Field | Description |
-|-------|-------------|
-| `headword` | Atomic unit: single word (EN) or single character (ZH) |
-| `pronunciation` | Phonetic form (IPA or pinyin); null when source lacks it |
-| `part_of_speech` | Normalized POS (noun, verb, adj, adv, …) |
-| `short_definition` | One-line summary for list view |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `headword` | string | ✓ | Atomic unit: single word (EN) or single character (ZH) |
+| `sort_key` | string | ✓ | Ordering key: lowercase (EN), pinyin (ZH) |
+| `leading_key` | string | ✓ | Grouping key (equals headword for heads) |
+| `pronunciation` | string? | | Phonetic form: diacritical (Webster), pinyin (ZH) |
+| `part_of_speech` | string? | | POS label (noun, adj., v.t., 名, 动, etc.) |
+| `short_definition` | string | ✓ | One-line summary for list view |
+| `full_definition` | string | ✓ | Full text for detail view |
+| `phrases` | PhraseItem[]? | | Compound words/idioms grouped under this head |
 
-Multiple definitions for the same tuple appear only in the detail view, not as separate list rows.
+Entries with the same headword but different POS or pronunciation are separate lines, grouped together by the TUI.
 
 ---
 
 ## 2. Phrases and Idioms
 
-- **Not in the word list.** The index shows only atomic headwords.
+- **Not shown in the word list.** The index shows only atomic headwords.
 - **Stored as `PhraseItem[]`** inside the head entry's `phrases` array.
-- **Displayed** in the detail view when present, as a dedicated "Phrases" section.
+- **Not rendered** in the current detail view (focus is on the word list).
 
 ---
 
 ## 3. Sources
 
-| Use case | Source | Notes |
-|----------|--------|-------|
-| **English** | Wordset | 77K words, clean POS, no pronunciation |
-| **Chinese–Chinese** | chinese-xinhua | 17K characters + 295K phrases/idioms |
-| **Chinese–English** | CC-CEDICT | 13K character heads + 102K compound phrases |
+| Use case | Source | Entries | POS | Pron. |
+|----------|--------|---------|-----|-------|
+| **English** | Webster's 1913 | 109K | 96% | 96% (diacritical) |
+| **English** (alt) | Wordset | 77K | ✓ | ✗ |
+| **Chinese–Chinese** | chinese-xinhua | 17K | 9% (Chinese labels) | ✓ (pinyin) |
+| **Chinese–English** | CC-CEDICT | 13K | partial (inferred) | ✓ (pinyin) |
 
 ---
 
-## 4. Schema
+## 4. List View Display
 
-### HeadEntry (one JSONL line)
+All dictionaries share the same column layout with a header row:
 
-| Field | Type | Required |
-|-------|------|----------|
-| `headword` | string | ✓ |
-| `sort_key` | string | ✓ |
-| `leading_key` | string | ✓ |
-| `pronunciation` | string? | |
-| `part_of_speech` | string? | |
-| `short_definition` | string | ✓ |
-| `full_definition` | string | ✓ |
-| `phrases` | PhraseItem[]? | |
+```
+┌─ Entries · Collapsed ───────────────────────────┐
+│ Word           POS    Pron.        Definition    │
+│ Abstract       adj.   Abˈstract    Withdraw; …   │
+│ Apple          noun   Apˈple       The fleshy …   │
+│ …                                                │
+└──────────────────────────────────────────────────┘
+```
 
-### PhraseItem
+**Column order:** indicator → Word → POS → Pron. → Definition
 
-| Field | Type |
-|-------|------|
-| `form` | string |
-| `definition` | string |
+**Collapse/expand:**
+- Entries with the same headword (different POS or pronunciation) are grouped.
+- Collapsed view: one row per unique headword; `-` indicator if variants are hidden.
+- Expanded view: all entries visible; `+` on the group header.
+- Toggle with Space key.
 
 ---
 
-## 5. Display
+## 5. Detail View
 
-### List view
-
-Columns: headword, POS, short_definition. Pronunciation shown when present. One row per head entry.
-
-### Detail view
-
+Shows the selected entry's full information:
 - Headword, POS, pronunciation
-- Full definition (numbered senses or full text)
-- Phrases section when `phrases` is non-empty
+- Full definition text
+
+---
+
+## 6. Sorting
+
+- **Alphabetical** (English): sorted by `sort_key` (lowercase headword).
+- **Pinyin** (Chinese): sorted by pinyin `sort_key`. Entries with the same headword are kept adjacent (sorted by the lowest pinyin reading of the headword group).

@@ -357,7 +357,7 @@ pub fn run() -> AppResult<()> {
     loop {
         if let Ok(size) = terminal.size() {
             let body_height = size.height.saturating_sub(4).max(1);
-            let list_inner = body_height.saturating_sub(2).max(1);
+            let list_inner = body_height.saturating_sub(3).max(1);
             let new_page_size = list_inner as usize;
             if new_page_size != app.page_size {
                 app.page_size = new_page_size;
@@ -529,26 +529,59 @@ fn truncate_str(s: &str, max_chars: usize) -> String {
     }
 }
 
-/// Format a list row with unified columns.
+/// Format a list row: indicator, headword, POS, pronunciation, definition.
 fn format_list_row(indicator: &str, entry: &ListEntry, def_max: usize) -> String {
     let head = truncate_str(&entry.headword, HEADWORD_COL.saturating_sub(1));
+    let pos = truncate_str(
+        entry.part_of_speech.as_deref().unwrap_or(""),
+        POS_COL.saturating_sub(1),
+    );
     let pron = truncate_str(
         entry.pronunciation.as_deref().unwrap_or(""),
         PRON_COL.saturating_sub(1),
     );
-    let pos = entry.part_of_speech.as_deref().unwrap_or("");
     let def = truncate_str(entry.short_definition.as_deref().unwrap_or(""), def_max);
     format!(
-        "{indicator:<INDICATOR_COL$}{head:<HEADWORD_COL$} {pron:<PRON_COL$} {pos:<POS_COL$} {def}"
+        "{indicator:<INDICATOR_COL$}{head:<HEADWORD_COL$} {pos:<POS_COL$} {pron:<PRON_COL$} {def}"
     )
 }
 
 fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app: &AppState) {
-    let fixed_cols = INDICATOR_COL + HEADWORD_COL + 1 + PRON_COL + 1 + POS_COL + 1;
-    let def_max = area
+    let view_label = match app.view_mode {
+        ViewMode::Collapsed => "Collapsed",
+        ViewMode::Expanded => "Expanded",
+    };
+    let list_title: String = if app.search_active && !app.search_buffer.is_empty() {
+        format!(" Search: {} ", app.search_buffer)
+    } else if app.search_active {
+        " Search: (type to filter) ".to_string()
+    } else {
+        format!(" Entries \u{00b7} {view_label} ")
+    };
+
+    let outer_block = Block::default().borders(Borders::ALL).title(list_title);
+    let inner = outer_block.inner(area);
+    frame.render_widget(outer_block, area);
+
+    // Split inner area: column header row, then scrollable list.
+    let [header_area, list_area] = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Min(1)])
+        .areas(inner);
+
+    let fixed_cols = INDICATOR_COL + HEADWORD_COL + 1 + POS_COL + 1 + PRON_COL + 1;
+    let def_max = inner
         .width
         .saturating_sub(u16::try_from(fixed_cols).unwrap_or(40))
         .max(8) as usize;
+
+    let header_line = format!(
+        "{:<INDICATOR_COL$}{:<HEADWORD_COL$} {:<POS_COL$} {:<PRON_COL$} {}",
+        "", "Word", "POS", "Pron.", "Definition"
+    );
+    let header = Paragraph::new(header_line)
+        .style(Style::default().add_modifier(Modifier::BOLD | Modifier::DIM));
+    frame.render_widget(header, header_area);
 
     let entries = &app.current_entries;
     let mut items = Vec::with_capacity(entries.len().max(1));
@@ -561,7 +594,6 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
         for (local_idx, entry) in entries.iter().enumerate() {
             let indicator = match app.view_mode {
                 ViewMode::Collapsed => {
-                    // In collapsed view, each entry is a root. Show "-" if group has >1 entries.
                     let root_idx = page_global_offset + local_idx as u64;
                     let gsz = app.provider.group_size(root_idx);
                     if gsz > 1 {
@@ -571,7 +603,6 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
                     }
                 }
                 ViewMode::Expanded => {
-                    // Determine if this entry is a group header or a variant.
                     let global_idx = page_global_offset + local_idx as u64;
                     let root_idx = app.provider.root_index_for_entry(global_idx);
                     let root_offset = app.provider.root_offset_at(root_idx);
@@ -591,26 +622,13 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
         }
     }
 
-    let view_label = match app.view_mode {
-        ViewMode::Collapsed => "Collapsed",
-        ViewMode::Expanded => "Expanded",
-    };
-    let list_title: String = if app.search_active && !app.search_buffer.is_empty() {
-        format!(" Search: {} ", app.search_buffer)
-    } else if app.search_active {
-        " Search: (type to filter) ".to_string()
-    } else {
-        format!(" Entries \u{00b7} {view_label} ")
-    };
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(list_title))
-        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+    let list = List::new(items).highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
     let mut state = ListState::default();
     if !entries.is_empty() {
         state.select(Some(app.selected_idx));
     }
-    frame.render_stateful_widget(list, area, &mut state);
+    frame.render_stateful_widget(list, list_area, &mut state);
 
     if app.screen == Screen::IncrementInput {
         let overlay_area = centered_rect(60, 20, area);
