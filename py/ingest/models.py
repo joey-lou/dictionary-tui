@@ -1,9 +1,9 @@
 """Shared data models for dictionary pack ingest scripts.
 
-Unified schema: every ``entries.jsonl`` line is a **head** entry (single word
-for EN, single character for ZH).  Multi-word/multi-char entries are stored
-as ``PhraseItem`` objects inside the head's ``phrases`` list and never appear
-as top-level index rows.
+Every ``entries.jsonl`` line is a **head** entry — one per
+(headword, pronunciation, part_of_speech) tuple. Multi-word/multi-char
+entries are stored as ``PhraseItem`` objects inside the head's ``phrases``
+list and never appear as top-level rows.
 """
 
 from __future__ import annotations

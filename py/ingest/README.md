@@ -92,13 +92,14 @@ write_pack(Path("packs/my-pack"), manifest, entries)
 
 3. **Run it:** `python3 py/ingest_<name>.py`
 
-`write_pack` handles sorting by `(leading_key, sort_key)` and writing
-both `manifest.json` and `entries.jsonl`.
+`write_pack` handles sorting and writing both `manifest.json` and `entries.jsonl`.
+Pinyin packs sort by `(sort_key, headword)`; alphabetical packs by `(leading_key, sort_key)`.
 
 ## Existing sources
 
 | Source module | CLI script | Pack ID |
 |---------------|-----------|---------|
+| `sources/webster1913.py` | `py/ingest_webster1913.py` | `webster1913-en` |
 | `sources/wordset.py` | `py/ingest_wordset.py` | `wordset-en` |
 | `sources/xinhua.py` | `py/ingest_xinhua.py` | `xinhua-zh-zh` |
 | `sources/cedict.py` | `py/ingest_cedict.py` | `cc-cedict` |

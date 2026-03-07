@@ -71,13 +71,14 @@ The app discovers packs from both:
 1. Config directory (`ProjectDirs(...)/packs`)
 2. Repo-local `packs/` (bundled packs for development)
 
-Three packs ship with the repo:
+Four packs ship with the repo:
 
 | Pack | Command | Description |
 |------|---------|-------------|
-| **Wordset EN** | `python3 py/ingest_wordset.py` | 77K English words (single-word only, POS, definitions) |
-| **Xinhua ZH-ZH** | `python3 py/ingest_xinhua.py` | 17K Chinese characters with Chinese definitions + 295K phrases/idioms |
-| **CC-CEDICT ZH-EN** | `python3 py/ingest_cedict.py` | 13K Chinese character heads + 102K compound phrases with English definitions |
+| **Webster's 1913** | `python3 py/ingest_webster1913.py` | 109K English words with POS, pronunciation, and definitions |
+| **Wordset EN** | `python3 py/ingest_wordset.py` | 77K English words (POS, definitions; no pronunciation) |
+| **Xinhua ZH-ZH** | `python3 py/ingest_xinhua.py` | 17K Chinese characters with pinyin, Chinese definitions + phrases/idioms |
+| **CC-CEDICT ZH-EN** | `python3 py/ingest_cedict.py` | 13K Chinese character heads with pinyin, POS, English definitions |
 
 All ingest scripts auto-download source data into `.cache/` on first run.
 Use `--help` on any script for options (e.g. `--source-file`, `--out`).
