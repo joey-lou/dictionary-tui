@@ -1,0 +1,1 @@
+"""Dictionary pack ingest package."""

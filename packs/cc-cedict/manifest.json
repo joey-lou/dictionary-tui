@@ -1,0 +1,10 @@
+{
+  "id": "cc-cedict",
+  "name": "CC-CEDICT (Chinese–English)",
+  "language": "zh",
+  "sort": "pinyin",
+  "entry_count": 124260,
+  "data_file": "entries.jsonl",
+  "license": "CC BY-SA 4.0",
+  "source_url": "https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz"
+}

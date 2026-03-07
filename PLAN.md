@@ -33,10 +33,8 @@
 
 3. **Layout**
    - **List view:** **Single pane** only — one “page” of the dictionary at a time, like a single spread of a paper dictionary. No side panel; the list fills the main area.
-   - **Detail view:** **TBD** — two options to evaluate:
-     - **Expand in place:** Tree-style expansion of the selected list item (definition and optional phrases/成语 open below the headword in the same list).
-     - **Side panel:** Detail opens in a second pane (e.g. list left, definition right).
-   - Decide during implementation based on readability and terminal size; document the choice in the plan once decided.
+   - **Detail view (current implementation):** Opens as a **dedicated full-screen detail screen** (list hidden, detail shown alone) and returns to list on back/escape.
+   - **Future refinement options:** Expand-in-place or side panel can still be evaluated later, but full-screen detail is the baseline for Phase 1 due to readability in small terminals.
 
 ---
 
@@ -172,19 +170,20 @@ No changes to core TUI or provider interface required.
 
 - **Deliverable:** At least one ingest binary (e.g. `cargo run --bin ingest_webster`) or script that produces a pack under `packs/webster-1913/` (or similar) with valid `manifest.json` and `entries.jsonl`.
 
-### 5.2 Chinese (future)
+### 5.2 Chinese
 
 | Source | Content | Ingest output |
 |--------|---------|----------------|
-| **CC-CEDICT** | Traditional/simplified, pinyin, English definitions | Pack with `language: "zh"`, `sort: "pinyin"`, sort_key = normalized pinyin; headword = simplified (or configurable); short_definition = first gloss; full_definition = all glosses. |
-| **Wiktionary zh-extract** (e.g. Kaikki) | Chinese entries, Chinese definitions, 成语, phrases | Filter Mandarin/Chinese; map to same schema; add `phrases` for 成语 and common phrases. |
+| **CC-CEDICT** | Traditional/simplified, pinyin, English definitions | Pack with `language: "zh"`, `sort: "pinyin"`, sort_key = normalized pinyin; headword = simplified (or `--traditional`); list/detail and search by pinyin. Run: `python3 scripts/ingest_cedict.py` (optional `--source-file` if URL fails). |
+| **Wiktionary zh-extract** (e.g. Kaikki) | Chinese entries, **Chinese definitions**, 成语, phrases | For Chinese-in-Chinese definitions: filter Mandarin; map to same schema; add `phrases` for 成语. Ingest script TBD. |
 
-- **Deliverable (later):** `ingest_cedict` binary and optionally ingest for Wiktextract zh, producing packs under e.g. `packs/cc-cedict/`, `packs/wiktionary-zh/`.
+- **Deliverable:** `scripts/ingest_cedict.py` produces `packs/cc-cedict/` (pinyin-indexed, pinyin-searchable). For definitions in Chinese, use a Wiktionary zh–based ingest when available.
 
 ### 5.3 Pack Discovery and Install
 
 - **Bundled:** Ship one English pack (e.g. Webster 1913) in the repo or as a separate download so the app works out of the box with at least one dictionary.
 - **User install:** Document “Add a dictionary” = download or run ingest, then place the pack folder in `~/.config/dictionary-tui/packs/<pack-id>/` (or equivalent). App discovers it on next launch.
+- **Ingest boundary:** Prefer direct downloadable datasets (official dumps/files) over web crawling; ingest pipeline handles transform + validation into pack format.
 
 ---
 
@@ -242,7 +241,7 @@ dictionary-tui/
    - List view: **single pane**, one page of entries (headword, optional short_definition); up/down or left/right for prev/next.
    - **Random page:** Dedicated key to jump to a random page.
    - **Page-turn increment:** Cycle through presets (1/2/5/10/50) and support custom value; nav keys advance by current increment (pages or entries — decide and document).
-   - Detail view: on select, show full definition (and optional pronunciation); key to go back to list. Layout TBD: expand-in-place vs side panel (see §1 Features & user interactions).
+   - Detail view: on select, show full definition (and optional pronunciation); key to go back to list. **Current baseline:** dedicated full-screen detail screen.
 4. **Polish**
    - Configurable page size; basic error handling (missing pack, corrupt data); clear key bindings (e.g. help screen); show current increment in UI.
 
@@ -271,6 +270,7 @@ dictionary-tui/
    - Document provider API (for any future alternative backends).
 2. **Convenience**
    - Optional: CLI or in-TUI “Install dictionary” that runs a known ingest or downloads a prebuilt pack from a fixed URL.
+   - Publish contributor packs in common channels (GitHub Releases, object storage + manifest index, community registry file).
 
 ---
 

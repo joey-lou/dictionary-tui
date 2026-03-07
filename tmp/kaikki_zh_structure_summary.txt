@@ -1,0 +1,695 @@
+=== ZH — Top-level keys (first 100 lines) ===
+
+  antonyms: {'list[dict]'}
+    e.g. [{'alt': 'au1', 'word': 'out'}]
+
+  derived: {'list[dict]'}
+    e.g. list(len=734)
+    e.g. list(len=1279)
+
+  descendants: {'list[dict]'}
+    e.g. list(len=5)
+    e.g. list(len=5)
+
+  etymology_number: {'int'}
+    e.g. 1
+    e.g. 2
+
+  etymology_templates: {'list[dict]'}
+    e.g. [{'name': 'bor', 'args': {'1': 'yue', '2': 'en', '3': 'book'}, 'expansion': 'English book'}]
+    e.g. [{'name': 'bor+', 'args': {'1': 'zh', '2': 'en', '3': 'GDP'}, 'expansion': 'Borrowed from English GD
+
+  etymology_text: {'str'}
+    e.g. 'From English book.'
+    e.g. 'Borrowed from English GDP.'
+
+  forms: {'list[dict]'}
+    e.g. [{'form': '卜', 'tags': ['alternative']}]
+    e.g. [{'form': 'a', 'tags': ['lowercase']}]
+
+  head_templates: {'list[dict]'}
+    e.g. [{'name': 'head', 'args': {'1': 'zh', '2': 'verb'}, 'expansion': 'book'}]
+    e.g. [{'name': 'head', 'args': {'1': 'zh', '2': 'noun'}, 'expansion': 'GDP'}]
+
+  lang: {'str'}
+    e.g. 'Chinese'
+    e.g. 'Chinese'
+
+  lang_code: {'str'}
+    e.g. 'zh'
+    e.g. 'zh'
+
+  pos: {'str'}
+    e.g. 'verb'
+    e.g. 'noun'
+
+  redirects: {'list[str]'}
+    e.g. ['國']
+    e.g. ['數']
+
+  related: {'list[dict]'}
+    e.g. list(len=3)
+    e.g. [{'word': 'dog', '_dis1': '0 0'}]
+
+  senses: {'list[dict]'}
+    e.g. [{'links': [['book', 'book#English'], ['reserve', 'reserve']], 'raw_glosses': ['(Hong Kong Cantonese
+    e.g. [{'topics': ['economics', 'sciences'], 'links': [['economics', 'economics'], ['GDP', 'GDP#English'],
+
+  sounds: {'list[dict]'}
+    e.g. list(len=6)
+    e.g. list(len=26)
+
+  synonyms: {'list[dict]'}
+    e.g. list(len=9)
+    e.g. list(len=136)
+
+  wikipedia: {'list[str]'}
+    e.g. ['HKGolden']
+    e.g. ['HKGolden']
+
+  word: {'str'}
+    e.g. 'book'
+    e.g. 'GDP'
+
+
+=== Sense-level keys seen ===
+
+  alt_of: {'list'}
+  attestations: {'list'}
+  categories: {'list'}
+  coordinate_terms: {'list'}
+  derived: {'list'}
+  examples: {'list'}
+  form_of: {'list'}
+  glosses: {'list'}
+  id: {'str'}
+  links: {'list'}
+  qualifier: {'str'}
+  raw_glosses: {'list'}
+  raw_tags: {'list'}
+  related: {'list'}
+  synonyms: {'list'}
+  tags: {'list'}
+  topics: {'list'}
+  wikipedia: {'list'}
+
+=== Full JSON sample (first 5 entries) ===
+
+--- head/word: book ---
+{
+  "pos": "verb",
+  "head_templates": [
+    {
+      "name": "head",
+      "args": {
+        "1": "zh",
+        "2": "verb"
+      },
+      "expansion": "book"
+    }
+  ],
+  "sounds": [
+    {
+      "zh_pron": "buk\u00b9",
+      "tags": [
+        "Cantonese",
+        "Jyutping"
+      ]
+    },
+    {
+      "zh_pron": "buk\u00b9",
+      "tags": [
+        "Cantonese",
+        "Guangzhou",
+        "Jyutping"
+      ],
+      "raw_tags": [
+        "Standard-Cantonese",
+        "Hong Kong"
+      ]
+    },
+    {
+      "zh_pron": "b\u016bk",
+      "tags": [
+        "Cantonese",
+        "Guangzhou",
+        "Yale"
+      ],
+      "raw_tags": [
+        "Standard-Cantonese",
+        "Hong Kong"
+      ]
+    },
+    {
+      "zh_pron": "buk\u2077",
+      "tags": [
+        "Cantonese",
+        "Guangzhou",
+        "Cantonese",
+        "Pinyin"
+      ],
+      "raw_tags": [
+        "Standard-Cantonese",
+        "Hong Kong"
+      ]
+    },
+    {
+      "zh_pron": "bug\u00b9",
+      "tags": [
+        "Cantonese",
+        "Guangzhou",
+        "Guangdong-Romanization"
+      ],
+      "raw_tags": [
+        "Standard-Cantonese",
+        "Hong Kong"
+      ]
+    },
+    {
+      "ipa": "/p\u028ak\u031a\u2075/",
+      "tags": [
+        "Cantonese",
+        "Guangzhou",
+        "Sinological-IPA"
+      ],
+      "raw_tags": [
+        "Standard-Cantonese",
+        "Hong Kong"
+      ]
+    }
+  ],
+  "etymology_text": "From English book.",
+  "etymology_templates": [
+    {
+      "name": "bor",
+      "args": {
+        "1": "yue",
+        "2": "en",
+        "3": "book"
+      },
+      "expansion": "English book"
+    }
+  ],
+  "word": "book",
+  "lang": "Chinese",
+  "lang_code": "zh",
+  "forms": [
+    {
+      "form": "\u535c",
+      "tags": [
+        "alternative"
+      ]
+    }
+  ],
+  "senses": [
+    {
+      "links": [
+        [
+          "book",
+          "book#English"
+        ],
+        [
+          "reserve",
+          "reserve"
+        ]
+      ],
+      "raw_glosses": [
+        "(Hong Kong Cantonese, colloquial) to b
+
+--- head/word: GDP ---
+{
+  "pos": "noun",
+  "head_templates": [
+    {
+      "name": "head",
+      "args": {
+        "1": "zh",
+        "2": "noun"
+      },
+      "expansion": "GDP"
+    }
+  ],
+  "sounds": [
+    {
+      "zh_pron": "j\u00ec-d\u00ec-p\u00ec",
+      "tags": [
+        "Mandarin",
+        "Pinyin"
+      ]
+    },
+    {
+      "zh_pron": "j\u016b-d\u012b-p\u012b",
+      "tags": [
+        "Mandarin",
+        "Pinyin"
+      ]
+    },
+    {
+      "zh_pron": "\u3110\u3127\u02cb \u3109\u3127\u02cb \u3106\u3127\u02cb",
+      "tags": [
+        "Mandarin",
+        "Bopomofo"
+      ]
+    },
+    {
+      "zh_pron": "\u3110\u3129 \u3109\u3127 \u3106\u3127",
+      "tags": [
+        "Mandarin",
+        "Bopomofo"
+      ]
+    },
+    {
+      "zh_pron": "zi\u00b9 di\u00b9 pi\u00b9",
+      "tags": [
+        "Cantonese",
+        "Jyutping"
+      ]
+    },
+    {
+      "zh_pron": "j\u00ec-d\u00ec-p\u00ec",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Pinyin"
+      ]
+    },
+    {
+      "zh_pron": "\u3110\u3127\u02cb \u3109\u3127\u02cb \u3106\u3127\u02cb",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Bopomofo"
+      ]
+    },
+    {
+      "zh_pron": "j\u00ecd\u00ecp\u00ec",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Tongyong-Pinyin"
+      ]
+    },
+    {
+      "zh_pron": "chi\u2074-ti\u2074-p\u02bbi\u2074",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Wade-Giles"
+      ]
+    },
+    {
+      "zh_pron": "j\u00ec-d\u00ec-p\u00ec",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Yale"
+      ]
+    },
+    {
+      "zh_pron": "jihdihpih",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Gwoyeu-Romatsyh"
+      ]
+    },
+    {
+      "zh_pron": "\u0446\u0437\u0438\u0434\u0438\u043f\u0438",
+      "roman": "czidipi",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Palladius"
+      ]
+    },
+    {
+      "ipa": "/t\u0361\u0255i\u2075\u00b9\u2
+
+--- head/word: A ---
+{
+  "pos": "verb",
+  "head_templates": [
+    {
+      "name": "zh-verb",
+      "args": {},
+      "expansion": "A"
+    }
+  ],
+  "sounds": [
+    {
+      "zh_pron": "\u0113i (ei\u00b9)",
+      "tags": [
+        "Mandarin",
+        "Pinyin"
+      ]
+    },
+    {
+      "zh_pron": "\u311f",
+      "tags": [
+        "Mandarin",
+        "Bopomofo"
+      ]
+    },
+    {
+      "zh_pron": "\u0113i",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Pinyin"
+      ]
+    },
+    {
+      "zh_pron": "\u311f",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Bopomofo"
+      ]
+    },
+    {
+      "zh_pron": "ei",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Tongyong-Pinyin"
+      ]
+    },
+    {
+      "zh_pron": "ei\u00b9",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Wade-Giles"
+      ]
+    },
+    {
+      "zh_pron": "\u0113i",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Yale"
+      ]
+    },
+    {
+      "zh_pron": "ei",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Gwoyeu-Romatsyh"
+      ]
+    },
+    {
+      "zh_pron": "\u044d\u0439",
+      "roman": "ej",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Palladius"
+      ]
+    },
+    {
+      "ipa": "/\u02c0e\u026a\u032f\u2075\u2075/",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Sinological-IPA"
+      ]
+    }
+  ],
+  "etymology_number": 1,
+  "etymology_text": "From the hotkey in many video games associated with the command \"attack\".",
+  "word": "A",
+  "lang": "Chinese",
+  "lang_code": "zh",
+  "related": [
+    {
+      "word": "\u5e73A",
+      "_dis1": "0 0"
+    },
+    {
+      "word": "\u5c0dA",
+      "_dis1": "0 0"
+    },
+    {
+      "word": "\u5bf9A",
+      "_dis1": "0 0"
+    }
+  ],
+  "senses": [
+    {
+      "links": [
+        [
+          "attack",
+          "attack"
+        ],
+        [
+          "assault",
+          "assault"
+     
+
+--- head/word: A ---
+{
+  "pos": "adj",
+  "head_templates": [
+    {
+      "name": "head",
+      "args": {
+        "1": "zh",
+        "2": "adjectives"
+      },
+      "expansion": "A"
+    }
+  ],
+  "sounds": [
+    {
+      "zh_pron": "\u0113i (ei\u00b9)",
+      "tags": [
+        "Mandarin",
+        "Pinyin"
+      ]
+    },
+    {
+      "zh_pron": "\u311f",
+      "tags": [
+        "Mandarin",
+        "Bopomofo"
+      ]
+    },
+    {
+      "zh_pron": "\u0113i",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Pinyin"
+      ]
+    },
+    {
+      "zh_pron": "\u311f",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Bopomofo"
+      ]
+    },
+    {
+      "zh_pron": "ei",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Tongyong-Pinyin"
+      ]
+    },
+    {
+      "zh_pron": "ei\u00b9",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Wade-Giles"
+      ]
+    },
+    {
+      "zh_pron": "\u0113i",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Yale"
+      ]
+    },
+    {
+      "zh_pron": "ei",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Gwoyeu-Romatsyh"
+      ]
+    },
+    {
+      "zh_pron": "\u044d\u0439",
+      "roman": "ej",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Palladius"
+      ]
+    },
+    {
+      "ipa": "/\u02c0e\u026a\u032f\u2075\u2075/",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Sinological-IPA"
+      ]
+    },
+    {
+      "zh_pron": "ei\u00b9",
+      "tags": [
+        "Cantonese",
+        "Jyutping"
+      ]
+    },
+    {
+      "zh_pron": "ei\u00b9",
+      "tags": [
+        "Cantonese",
+        "Guangzhou",
+        "Jyutping"
+      ],
+      "raw_tags": [
+        "Standard-Cantonese",
+        "Hong Kong"
+      ]
+    },
+    {
+      "zh_pron": "\u0113i",
+      "tags": [
+        "Cantonese",
+        "Guangzhou",
+        "Yale"
+      ],
+      "raw_tags": [
+        "Standard-Cantonese",
+        
+
+--- head/word: A ---
+{
+  "pos": "noun",
+  "head_templates": [
+    {
+      "name": "head",
+      "args": {
+        "1": "zh",
+        "2": "nouns"
+      },
+      "expansion": "A"
+    }
+  ],
+  "sounds": [
+    {
+      "zh_pron": "\u0113i (ei\u00b9)",
+      "tags": [
+        "Mandarin",
+        "Pinyin"
+      ]
+    },
+    {
+      "zh_pron": "\u311f",
+      "tags": [
+        "Mandarin",
+        "Bopomofo"
+      ]
+    },
+    {
+      "zh_pron": "\u0113i",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Pinyin"
+      ]
+    },
+    {
+      "zh_pron": "\u311f",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Bopomofo"
+      ]
+    },
+    {
+      "zh_pron": "ei",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Tongyong-Pinyin"
+      ]
+    },
+    {
+      "zh_pron": "ei\u00b9",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Wade-Giles"
+      ]
+    },
+    {
+      "zh_pron": "\u0113i",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Yale"
+      ]
+    },
+    {
+      "zh_pron": "ei",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Gwoyeu-Romatsyh"
+      ]
+    },
+    {
+      "zh_pron": "\u044d\u0439",
+      "roman": "ej",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Palladius"
+      ]
+    },
+    {
+      "ipa": "/\u02c0e\u026a\u032f\u2075\u2075/",
+      "tags": [
+        "Mandarin",
+        "Standard-Chinese",
+        "Sinological-IPA"
+      ]
+    },
+    {
+      "zh_pron": "ei\u00b9",
+      "tags": [
+        "Cantonese",
+        "Jyutping"
+      ]
+    },
+    {
+      "zh_pron": "ei\u00b9",
+      "tags": [
+        "Cantonese",
+        "Guangzhou",
+        "Jyutping"
+      ],
+      "raw_tags": [
+        "Standard-Cantonese",
+        "Hong Kong"
+      ]
+    },
+    {
+      "zh_pron": "\u0113i",
+      "tags": [
+        "Cantonese",
+        "Guangzhou",
+        "Yale"
+      ],
+      "raw_tags": [
+        "Standard-Cantonese",
+        "Hon
+

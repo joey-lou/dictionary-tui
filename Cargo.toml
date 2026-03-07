@@ -8,6 +8,7 @@ license = "MIT"
 authors = ["Joey Lou <joey99lou@gmail.com>"]
 
 [dependencies]
+directories = "6.0"
 ratatui = "0.28"
 crossterm = "0.28"
 serde = { version = "1.0", features = ["derive"] }

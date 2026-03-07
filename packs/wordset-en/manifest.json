@@ -1,0 +1,10 @@
+{
+  "id": "wordset-en",
+  "name": "Wordset Dictionary",
+  "language": "en",
+  "sort": "alphabetical",
+  "entry_count": 77000,
+  "data_file": "entries.jsonl",
+  "license": "CC BY 4.0",
+  "source_url": "https://github.com/StevensDeptECE/Dictionaries/tree/master/wordset-dictionary"
+}

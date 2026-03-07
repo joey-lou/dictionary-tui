@@ -1,0 +1,10 @@
+{
+  "id": "kaikki-en",
+  "name": "English (Wiktionary)",
+  "language": "en",
+  "sort": "alphabetical",
+  "entry_count": 3000,
+  "data_file": "entries.jsonl",
+  "license": "CC BY-SA 3.0",
+  "source_url": "https://kaikki.org/dictionary/"
+}

@@ -5,3 +5,7 @@
 .vscode
 *.swp
 *.swo
+.rtw
+.cache
+__pycache__/
+*.pyc
