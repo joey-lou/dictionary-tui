@@ -20,20 +20,20 @@ _SHORT_DEF_MAX = 60
 
 # Grammar POS markers found in angle brackets 〈...〉
 _GRAMMAR_POS: dict[str, str] = {
-    "名": "n.",
-    "动": "v.",
-    "形": "adj.",
-    "副": "adv.",
-    "数": "num.",
-    "量": "cl.",
-    "代": "pron.",
-    "叹": "interj.",
-    "助": "part.",
-    "连": "conj.",
-    "介": "prep.",
-    "拟声": "onom.",
-    "语气": "modal",
-    "前缀": "prefix",
+    "名": "名",
+    "动": "动",
+    "形": "形",
+    "副": "副",
+    "数": "数",
+    "量": "量",
+    "代": "代",
+    "叹": "叹",
+    "助": "助",
+    "连": "连",
+    "介": "介",
+    "拟声": "拟声",
+    "语气": "语气",
+    "前缀": "前缀",
 }
 # Combined POS markers (e.g. "形、副")
 _COMBINED_SEP = re.compile(r"[、，,]")

@@ -529,17 +529,20 @@ fn truncate_str(s: &str, max_chars: usize) -> String {
     }
 }
 
-/// Format a list row with unified columns.
+/// Format a list row: indicator, headword, POS, pronunciation, definition.
 fn format_list_row(indicator: &str, entry: &ListEntry, def_max: usize) -> String {
     let head = truncate_str(&entry.headword, HEADWORD_COL.saturating_sub(1));
+    let pos = truncate_str(
+        entry.part_of_speech.as_deref().unwrap_or(""),
+        POS_COL.saturating_sub(1),
+    );
     let pron = truncate_str(
         entry.pronunciation.as_deref().unwrap_or(""),
         PRON_COL.saturating_sub(1),
     );
-    let pos = entry.part_of_speech.as_deref().unwrap_or("");
     let def = truncate_str(entry.short_definition.as_deref().unwrap_or(""), def_max);
     format!(
-        "{indicator:<INDICATOR_COL$}{head:<HEADWORD_COL$} {pron:<PRON_COL$} {pos:<POS_COL$} {def}"
+        "{indicator:<INDICATOR_COL$}{head:<HEADWORD_COL$} {pos:<POS_COL$} {pron:<PRON_COL$} {def}"
     )
 }
 
