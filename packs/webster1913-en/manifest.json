@@ -1,0 +1,10 @@
+{
+  "id": "webster1913-en",
+  "name": "Webster's 1913",
+  "language": "en",
+  "sort": "alphabetical",
+  "entry_count": 108854,
+  "data_file": "entries.jsonl",
+  "license": "Public Domain",
+  "source_url": "https://www.gutenberg.org/ebooks/29765"
+}
