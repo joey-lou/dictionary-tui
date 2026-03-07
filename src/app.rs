@@ -26,7 +26,7 @@ const INCREMENT_PRESETS: [u64; 6] = [1, 2, 5, 10, 50, 100];
 const HEADWORD_WIDTH: usize = 24;
 const POS_WIDTH: usize = 6;
 
-/// Leading key for grouping (first word/syllable of sort_key).
+/// Leading key for grouping (first word/syllable of `sort_key`).
 fn entry_leading_key(entry: &ListEntry) -> &str {
     entry
         .leading_key
@@ -42,7 +42,7 @@ fn is_compound(entry: &ListEntry) -> bool {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ViewMode {
-    /// Only root entries (one per leading_key); fewer pages.
+    /// Only root entries (one per `leading_key`); fewer pages.
     Collapsed,
     /// All entries; full page count.
     Expanded,
@@ -300,19 +300,17 @@ impl AppState {
                 self.current_page = root_index / page_size_u;
                 self.reload_page()?;
                 let n = self.current_entries.len();
-                self.selected_idx = (root_index % page_size_u) as usize;
-                if self.selected_idx >= n && n > 0 {
-                    self.selected_idx = n - 1;
-                }
+                self.selected_idx = usize::try_from(root_index % page_size_u)
+                    .unwrap_or(0)
+                    .min(n.saturating_sub(1));
             }
             ViewMode::Expanded => {
                 self.current_page = global_offset / page_size_u;
                 self.reload_page()?;
                 let n = self.current_entries.len();
-                self.selected_idx = (global_offset % page_size_u) as usize;
-                if self.selected_idx >= n && n > 0 {
-                    self.selected_idx = n - 1;
-                }
+                self.selected_idx = usize::try_from(global_offset % page_size_u)
+                    .unwrap_or(0)
+                    .min(n.saturating_sub(1));
             }
         }
         Ok(())
@@ -543,7 +541,7 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
         let max_head_chars = HEADWORD_WIDTH.saturating_sub(3);
         let mut prev_leading: Option<&str> = None;
         let show_tree = matches!(app.view_mode, ViewMode::Expanded);
-        for entry in entries.iter() {
+        for entry in entries {
             let leading = entry_leading_key(entry);
             let compound = is_compound(entry);
             let indent = show_tree && prev_leading == Some(leading) && compound;
@@ -570,15 +568,9 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
                 def
             };
             let prefix = if indent { " ·" } else { "  " };
-            let line = format!(
-                "{:<2} {:<HEADWORD_WIDTH$} {:<POS_WIDTH$} {}",
-                prefix,
-                head,
-                pos_str,
-                def.trim_start(),
-                HEADWORD_WIDTH = HEADWORD_WIDTH,
-                POS_WIDTH = POS_WIDTH
-            );
+            let trimmed_def = def.trim_start();
+            let line =
+                format!("{prefix:<2} {head:<HEADWORD_WIDTH$} {pos_str:<POS_WIDTH$} {trimmed_def}");
             items.push(ListItem::new(Line::from(line)));
         }
     }

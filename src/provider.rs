@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::Path;
 
-/// First token of sort_key (word/syllable) for tree grouping.
+/// First token of `sort_key` (word/syllable) for tree grouping.
 fn first_token(s: &str) -> &str {
     s.split_whitespace().next().unwrap_or("")
 }
@@ -18,7 +18,7 @@ pub trait Provider: Send + Sync {
     /// Total number of entries in the pack.
     fn entry_count(&self) -> u64;
 
-    /// Number of root entries (one per leading_key group) for collapsed view.
+    /// Number of root entries (one per `leading_key` group) for collapsed view.
     fn root_count(&self) -> u64;
 
     /// List entries in sort order; `offset` is 0-based, `limit` caps the slice.
@@ -48,7 +48,7 @@ pub trait Provider: Send + Sync {
         query: &str,
     ) -> Result<Option<u64>, Box<dyn std::error::Error + Send + Sync>>;
 
-    /// List only root entries (one per leading_key) in order; for collapsed view paging.
+    /// List only root entries (one per `leading_key`) in order; for collapsed view paging.
     fn list_root_entries(
         &self,
         offset: u64,
@@ -58,7 +58,7 @@ pub trait Provider: Send + Sync {
     /// Collapsed-list index of the root that contains the given global entry offset (for jump/search in collapsed view).
     fn root_index_for_entry(&self, global_offset: u64) -> u64;
 
-    /// Global entry offset of the Nth root (inverse of root_index for the root at that index). For focus preservation when toggling to expanded.
+    /// Global entry offset of the Nth root (inverse of `root_index` for the root at that index). For focus preservation when toggling to expanded.
     fn root_offset_at(&self, collapsed_index: u64) -> u64;
 }
 
@@ -72,7 +72,7 @@ pub struct LocalProvider {
     line_headwords: Vec<String>,
     /// Sort key per line index (for pinyin search when language is zh).
     line_sort_keys: Vec<String>,
-    /// Line indices that are roots (first of each leading_key group) for collapsed view.
+    /// Line indices that are roots (first of each `leading_key` group) for collapsed view.
     root_indices: Vec<u64>,
 }
 
@@ -294,7 +294,9 @@ impl Provider for LocalProvider {
         limit: usize,
     ) -> Result<Vec<ListEntry>, Box<dyn std::error::Error + Send + Sync>> {
         let end = (offset.saturating_add(limit as u64)).min(self.root_indices.len() as u64);
-        let indices: Vec<u64> = self.root_indices[offset as usize..end as usize].to_vec();
+        let offset_idx = usize::try_from(offset).unwrap_or(0);
+        let end_idx = usize::try_from(end).unwrap_or(self.root_indices.len());
+        let indices: Vec<u64> = self.root_indices[offset_idx..end_idx].to_vec();
         if indices.is_empty() {
             return Ok(Vec::new());
         }
@@ -302,7 +304,8 @@ impl Provider for LocalProvider {
         let mut reader = BufReader::new(file);
         let mut list = Vec::with_capacity(indices.len());
         for &line_index in &indices {
-            let start_pos = self.line_offsets[line_index as usize];
+            let line_idx = usize::try_from(line_index).unwrap_or(0);
+            let start_pos = self.line_offsets[line_idx];
             reader.seek(SeekFrom::Start(start_pos))?;
             let mut line_bytes = Vec::new();
             let n = reader.read_until(b'\n', &mut line_bytes)?;
@@ -327,7 +330,7 @@ impl Provider for LocalProvider {
     }
 
     fn root_index_for_entry(&self, global_offset: u64) -> u64 {
-        let idx = global_offset as usize;
+        let idx = usize::try_from(global_offset).unwrap_or(usize::MAX);
         if idx >= self.line_offsets.len() {
             return self.root_indices.len().saturating_sub(1) as u64;
         }
@@ -339,7 +342,7 @@ impl Provider for LocalProvider {
     }
 
     fn root_offset_at(&self, collapsed_index: u64) -> u64 {
-        let i = collapsed_index as usize;
+        let i = usize::try_from(collapsed_index).unwrap_or(usize::MAX);
         if self.root_indices.is_empty() {
             return 0;
         }

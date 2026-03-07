@@ -8,14 +8,11 @@ use std::{fmt, io};
 /// Returns the absolute path to the bundled `packs` directory when the binary
 /// is run from `target/debug` or `target/release`, so packs are found regardless of cwd.
 fn bundled_packs_root() -> PathBuf {
-    let exe = match std::env::current_exe() {
-        Ok(p) => p,
-        Err(_) => return PathBuf::from("packs"),
+    let Ok(exe) = std::env::current_exe() else {
+        return PathBuf::from("packs");
     };
-    // exe is e.g. .../target/debug/dictionary-tui or .../target/release/dictionary-tui
-    let exe_dir = match exe.parent() {
-        Some(d) => d.to_path_buf(),
-        None => return PathBuf::from("packs"),
+    let Some(exe_dir) = exe.parent() else {
+        return PathBuf::from("packs");
     };
     let project_root = exe_dir.parent().map(|p| p.join("packs"));
     match project_root {
