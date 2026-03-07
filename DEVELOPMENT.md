@@ -9,14 +9,19 @@
 ## Quick check
 
 ```bash
+# Rust
 cargo fmt
 cargo clippy -- -D warnings
 cargo test
+
+# Python (requires: pip install ruff)
+ruff check py/
+ruff format --check py/
 ```
 
 ## Pre-commit (recommended)
 
-Install hooks so format, clippy, and tests run on every commit:
+Install hooks so format, lint, and tests run on every commit:
 
 ```bash
 pre-commit install
@@ -24,9 +29,11 @@ pre-commit install
 
 Then each `git commit` will run:
 
-1. **cargo fmt** — Reformats code.
+1. **cargo fmt** — Reformats Rust code.
 2. **cargo clippy -- -D warnings** — Fails if Clippy reports any warning.
-3. **cargo test** — Runs tests.
+3. **cargo test** — Runs Rust tests.
+4. **ruff** — Lints Python code under `py/` (with auto-fix).
+5. **ruff-format** — Formats Python code under `py/`.
 
 Run manually on all files:
 
@@ -38,20 +45,23 @@ pre-commit run --all-files
 
 On push/PR to `main`, GitHub Actions runs:
 
-- `cargo fmt -- --check` (format check)
-- `cargo clippy -- -D warnings`
-- `cargo test`
+- `cargo fmt -- --check` (Rust format check)
+- `cargo clippy -- -D warnings` (Rust lint)
+- `cargo test` (Rust tests)
+- `ruff check py/` (Python lint)
+- `ruff format --check py/` (Python format check)
 
-Fix format and clippy locally before pushing.
+Fix format and lint issues locally before pushing.
 
 ## Config files
 
 | File | Purpose |
 |------|--------|
-| `rustfmt.toml` | Line width (100), edition. |
+| `rustfmt.toml` | Rust line width (100), edition. |
 | `Cargo.toml` → `[lints.rust]` | Forbid `unsafe_code`. |
 | `Cargo.toml` → `[lints.clippy]` | Pedantic/nursery lints (warn by default). |
-| `.pre-commit-config.yaml` | Local hooks. |
+| `pyproject.toml` | Ruff lint/format config for Python. |
+| `.pre-commit-config.yaml` | Pre-commit hooks (Rust + Python). |
 | `.github/workflows/ci.yml` | CI pipeline. |
 
 ## Dictionary packs
@@ -65,16 +75,16 @@ Three packs ship with the repo:
 
 | Pack | Command | Description |
 |------|---------|-------------|
-| **Wordset EN** | `python3 scripts/ingest_wordset.py` | 77K English words (single-word only, POS, definitions) |
-| **Xinhua ZH-ZH** | `python3 scripts/ingest_xinhua.py` | 17K Chinese characters with Chinese definitions + 295K phrases/idioms |
-| **CC-CEDICT ZH-EN** | `python3 scripts/ingest_cedict.py` | 13K Chinese character heads + 102K compound phrases with English definitions |
+| **Wordset EN** | `python3 py/ingest_wordset.py` | 77K English words (single-word only, POS, definitions) |
+| **Xinhua ZH-ZH** | `python3 py/ingest_xinhua.py` | 17K Chinese characters with Chinese definitions + 295K phrases/idioms |
+| **CC-CEDICT ZH-EN** | `python3 py/ingest_cedict.py` | 13K Chinese character heads + 102K compound phrases with English definitions |
 
 All ingest scripts auto-download source data into `.cache/` on first run.
 Use `--help` on any script for options (e.g. `--source-file`, `--out`).
 
 ### Adding a new dictionary source
 
-See `scripts/ingest/README.md` for the pack format and how to add a new source.
+See `py/ingest/README.md` for the pack format and how to add a new source.
 
 ## Optional: cargo-audit
 

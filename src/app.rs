@@ -26,7 +26,7 @@ const INCREMENT_PRESETS: [u64; 6] = [1, 2, 5, 10, 50, 100];
 const HEADWORD_WIDTH: usize = 24;
 const POS_WIDTH: usize = 6;
 
-/// Leading key for grouping (first word/syllable of sort_key).
+/// Leading key for grouping (first word/syllable of `sort_key`).
 fn entry_leading_key(entry: &ListEntry) -> &str {
     entry
         .leading_key
@@ -42,7 +42,7 @@ fn is_compound(entry: &ListEntry) -> bool {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ViewMode {
-    /// Only root entries (one per leading_key); fewer pages.
+    /// Only root entries (one per `leading_key`); fewer pages.
     Collapsed,
     /// All entries; full page count.
     Expanded,
@@ -176,7 +176,8 @@ impl AppState {
         self.selected_idx = if self.current_entries.is_empty() {
             0
         } else {
-            self.selected_idx.min(self.current_entries.len().saturating_sub(1))
+            self.selected_idx
+                .min(self.current_entries.len().saturating_sub(1))
         };
         Ok(())
     }
@@ -262,12 +263,16 @@ impl AppState {
                 let root_idx = self.provider.root_index_for_entry(global_offset);
                 self.current_page = root_idx / page_size_u;
                 self.reload_page()?;
-                self.selected_idx = usize::try_from(root_idx % page_size_u).unwrap_or(0).min(self.current_entries.len().saturating_sub(1));
+                self.selected_idx = usize::try_from(root_idx % page_size_u)
+                    .unwrap_or(0)
+                    .min(self.current_entries.len().saturating_sub(1));
             }
             ViewMode::Expanded => {
                 self.current_page = global_offset / page_size_u;
                 self.reload_page()?;
-                self.selected_idx = usize::try_from(global_offset % page_size_u).unwrap_or(0).min(self.current_entries.len().saturating_sub(1));
+                self.selected_idx = usize::try_from(global_offset % page_size_u)
+                    .unwrap_or(0)
+                    .min(self.current_entries.len().saturating_sub(1));
             }
         }
         Ok(())
@@ -281,9 +286,7 @@ impl AppState {
                 let collapsed_index = self.current_page * page_size_u + self.selected_idx as u64;
                 self.provider.root_offset_at(collapsed_index)
             }
-            ViewMode::Expanded => {
-                self.current_page * page_size_u + self.selected_idx as u64
-            }
+            ViewMode::Expanded => self.current_page * page_size_u + self.selected_idx as u64,
         };
 
         self.view_mode = match self.view_mode {
@@ -297,19 +300,17 @@ impl AppState {
                 self.current_page = root_index / page_size_u;
                 self.reload_page()?;
                 let n = self.current_entries.len();
-                self.selected_idx = (root_index % page_size_u) as usize;
-                if self.selected_idx >= n && n > 0 {
-                    self.selected_idx = n - 1;
-                }
+                self.selected_idx = usize::try_from(root_index % page_size_u)
+                    .unwrap_or(0)
+                    .min(n.saturating_sub(1));
             }
             ViewMode::Expanded => {
                 self.current_page = global_offset / page_size_u;
                 self.reload_page()?;
                 let n = self.current_entries.len();
-                self.selected_idx = (global_offset % page_size_u) as usize;
-                if self.selected_idx >= n && n > 0 {
-                    self.selected_idx = n - 1;
-                }
+                self.selected_idx = usize::try_from(global_offset % page_size_u)
+                    .unwrap_or(0)
+                    .min(n.saturating_sub(1));
             }
         }
         Ok(())
@@ -504,7 +505,7 @@ fn render(frame: &mut ratatui::Frame<'_>, app: &AppState) {
                     app.increment_pages
                 ),
             )
-        },
+        }
         Screen::Detail => ("Esc back · q quit", String::new()),
         Screen::IncrementInput => (
             "Esc cancel · Enter set",
@@ -540,7 +541,7 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
         let max_head_chars = HEADWORD_WIDTH.saturating_sub(3);
         let mut prev_leading: Option<&str> = None;
         let show_tree = matches!(app.view_mode, ViewMode::Expanded);
-        for entry in entries.iter() {
+        for entry in entries {
             let leading = entry_leading_key(entry);
             let compound = is_compound(entry);
             let indent = show_tree && prev_leading == Some(leading) && compound;
@@ -549,16 +550,16 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
             let head = if entry.headword.chars().count() > max_head_chars {
                 format!(
                     "{}…",
-                    entry.headword.chars().take(max_head_chars).collect::<String>()
+                    entry
+                        .headword
+                        .chars()
+                        .take(max_head_chars)
+                        .collect::<String>()
                 )
             } else {
                 entry.headword.clone()
             };
-            let pos_str = entry
-                .part_of_speech
-                .as_deref()
-                .unwrap_or("")
-                .to_string();
+            let pos_str = entry.part_of_speech.as_deref().unwrap_or("").to_string();
             let def_str = entry.short_definition.as_deref().unwrap_or("");
             let def: String = def_str.chars().take(def_max).collect();
             let def = if def_str.chars().count() > def_max {
@@ -567,15 +568,9 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
                 def
             };
             let prefix = if indent { " ·" } else { "  " };
-            let line = format!(
-                "{:<2} {:<HEADWORD_WIDTH$} {:<POS_WIDTH$} {}",
-                prefix,
-                head,
-                pos_str,
-                def.trim_start(),
-                HEADWORD_WIDTH = HEADWORD_WIDTH,
-                POS_WIDTH = POS_WIDTH
-            );
+            let trimmed_def = def.trim_start();
+            let line =
+                format!("{prefix:<2} {head:<HEADWORD_WIDTH$} {pos_str:<POS_WIDTH$} {trimmed_def}");
             items.push(ListItem::new(Line::from(line)));
         }
     }
@@ -589,7 +584,7 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
     } else if app.search_active {
         " Search: (type to filter) ".to_string()
     } else {
-        format!(" Entries · {} ", view_label)
+        format!(" Entries · {view_label} ")
     };
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL).title(list_title))
@@ -693,18 +688,16 @@ fn handle_key(app: &mut AppState, code: KeyCode) -> AppResult<bool> {
                     }
                     KeyCode::Backspace => {
                         app.search_buffer.pop();
-                        if let Ok(Some(offset)) = app
-                            .provider
-                            .search_first_prefix(app.search_buffer.as_str())
+                        if let Ok(Some(offset)) =
+                            app.provider.search_first_prefix(app.search_buffer.as_str())
                         {
                             let _ = app.jump_to_offset(offset);
                         }
                     }
                     KeyCode::Char(c) => {
                         app.search_buffer.push(c);
-                        if let Ok(Some(offset)) = app
-                            .provider
-                            .search_first_prefix(app.search_buffer.as_str())
+                        if let Ok(Some(offset)) =
+                            app.provider.search_first_prefix(app.search_buffer.as_str())
                         {
                             let _ = app.jump_to_offset(offset);
                         }

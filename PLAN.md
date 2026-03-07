@@ -135,7 +135,7 @@ dictionary-tui/
 │   ├── wordset-en/
 │   ├── xinhua-zh-zh/
 │   └── cc-cedict/
-├── scripts/
+├── py/
 │   ├── ingest/             # Shared ingest library
 │   │   ├── models.py       # HeadEntry, PhraseItem, PackManifest
 │   │   ├── io_utils.py     # write_pack, merge helpers

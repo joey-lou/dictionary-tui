@@ -72,7 +72,7 @@ The parser should:
 - Attach multi-word/multi-char entries as `PhraseItem` in `phrases`
 - Truncate `short_definition` to ~100 characters
 
-2. **Create a CLI script** at `scripts/ingest_<name>.py`:
+2. **Create a CLI script** at `py/ingest_<name>.py`:
 
 ```python
 from ingest.io_utils import write_pack
@@ -90,7 +90,7 @@ manifest = PackManifest(
 write_pack(Path("packs/my-pack"), manifest, entries)
 ```
 
-3. **Run it:** `python3 scripts/ingest_<name>.py`
+3. **Run it:** `python3 py/ingest_<name>.py`
 
 `write_pack` handles sorting by `(leading_key, sort_key)` and writing
 both `manifest.json` and `entries.jsonl`.
@@ -99,9 +99,9 @@ both `manifest.json` and `entries.jsonl`.
 
 | Source module | CLI script | Pack ID |
 |---------------|-----------|---------|
-| `sources/wordset.py` | `ingest_wordset.py` | `wordset-en` |
-| `sources/xinhua.py` | `ingest_xinhua.py` | `xinhua-zh-zh` |
-| `sources/cedict.py` | `ingest_cedict.py` | `cc-cedict` |
+| `sources/wordset.py` | `py/ingest_wordset.py` | `wordset-en` |
+| `sources/xinhua.py` | `py/ingest_xinhua.py` | `xinhua-zh-zh` |
+| `sources/cedict.py` | `py/ingest_cedict.py` | `cc-cedict` |
 
 ## Models
 

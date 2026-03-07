@@ -11,7 +11,6 @@ import urllib.request
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple
 
 from ..models import HeadEntry, PhraseItem
 
@@ -63,7 +62,7 @@ def _pinyin_syllable_to_accent(syllable: str) -> str:
     accented = tones[tone - 1]
     if v.isupper():
         accented = accented.upper()
-    result = base[:idx] + accented + base[idx + 1:]
+    result = base[:idx] + accented + base[idx + 1 :]
     if base and base[0].isupper():
         result = result[0].upper() + result[1:]
     return result
@@ -72,10 +71,7 @@ def _pinyin_syllable_to_accent(syllable: str) -> str:
 def pinyin_numbered_to_accent(pinyin_raw: str) -> str:
     """``'ni3 hao3 ma5'`` → ``'nǐ hǎo ma'``."""
     parts = pinyin_raw.strip().split()
-    return " ".join(
-        p if p in (".", "·", ",", " ") else _pinyin_syllable_to_accent(p)
-        for p in parts
-    )
+    return " ".join(p if p in (".", "·", ",", " ") else _pinyin_syllable_to_accent(p) for p in parts)
 
 
 def _infer_pos(defn: str) -> str | None:
@@ -87,7 +83,7 @@ def _infer_pos(defn: str) -> str | None:
         return "verb"
     if "CL:" in s or "classifier for " in lo:
         return "cl."
-    if lo.startswith("abbr.") or lo.startswith("abbreviation"):
+    if lo.startswith(("abbr.", "abbreviation")):
         return "abbr."
     if "proper noun" in lo or "surname" in lo or "given name" in lo:
         return "prop."
@@ -141,11 +137,11 @@ def _parse_raw(
     """Parse a CEDICT file into raw entries (before head/phrase split)."""
     import gzip
 
-    text = (
-        gzip.open(path, "rt", encoding="utf-8").read()
-        if _is_gzip(path)
-        else path.read_text(encoding="utf-8")
-    )
+    if _is_gzip(path):
+        with gzip.open(path, "rt", encoding="utf-8") as gz:
+            text = gz.read()
+    else:
+        text = path.read_text(encoding="utf-8")
 
     entries: list[_RawEntry] = []
     for line in text.splitlines():
@@ -229,7 +225,6 @@ def parse_file(
     # Create synthetic heads for leading characters that have phrases but no head
     for char, items in phrase_bucket.items():
         if char not in seen_leading and items:
-            first = items[0]
             heads.append(
                 HeadEntry(
                     headword=char,

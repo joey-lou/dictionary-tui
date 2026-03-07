@@ -60,13 +60,13 @@ def main() -> int:
     else:
         source_path = download_source(args.source_url, cache_path)
         head = source_path.read_bytes()[:200]
-        if head.startswith(b"<!") or head.startswith(b"<html"):
+        if head.startswith((b"<!", b"<html")):
             source_path.unlink(missing_ok=True)
             raise SystemExit(
                 "Download returned HTML (URL may be broken or require a browser). "
                 "Download CEDICT manually from https://cc-cedict.org/wiki/start or "
                 "https://www.mdbg.net/chinese/dictionary?page=cc-cedict and run:\n"
-                "  python3 scripts/ingest_cedict.py --source-file /path/to/cedict_*.txt.gz"
+                "  python3 py/ingest_cedict.py --source-file /path/to/cedict_*.txt.gz"
             )
 
     entries = parse_file(source_path, use_simplified=not args.traditional)
