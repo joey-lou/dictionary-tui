@@ -584,7 +584,7 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
     } else if app.search_active {
         " Search: (type to filter) ".to_string()
     } else {
-        format!(" Entries · {} ", view_label)
+        format!(" Entries · {view_label} ")
     };
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL).title(list_title))
