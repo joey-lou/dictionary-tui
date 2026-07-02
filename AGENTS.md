@@ -12,10 +12,6 @@ The VM ships with Rust 1.83 but the project requires **≥ 1.88** (due to `darli
 
 The app requires a real TTY — running `cargo run` from a non-interactive shell fails with "No such device or address (os error 6)". To test interactively, launch it inside a desktop terminal emulator (e.g. Xfce Terminal) or use `script -qc "cargo run" /dev/null` as a PTY wrapper.
 
-### Pre-existing lint issues
-
-As of the current codebase state, `cargo fmt -- --check` and `cargo clippy -- -D warnings` report pre-existing warnings/diffs. These are not caused by cloud agent changes.
-
 ### Dictionary packs
 
-Nine packs are committed under `packs/`. The app auto-discovers them at startup — no ingest step is needed to run.
+Three packs are committed under `packs/` (`webster1913-en`, `xinhua-zh-zh`, `cc-cedict`). The app auto-discovers them at startup — no ingest step is needed to run. Rebuild packs with the `py/ingest_*.py` scripts (see `DEVELOPMENT.md`).

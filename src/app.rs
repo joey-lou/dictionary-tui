@@ -680,6 +680,15 @@ fn render_detail(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, ap
                 .full_definition
                 .unwrap_or_else(|| "(none)".to_string()),
         );
+        if let Some(phrases) = &detail.phrases {
+            if !phrases.is_empty() {
+                lines.push(String::new());
+                lines.push("Phrases:".to_string());
+                for p in phrases {
+                    lines.push(format!("  {} — {}", p.form, p.definition));
+                }
+            }
+        }
         lines.join("\n")
     } else {
         "Detail not found for selected entry.".to_string()

@@ -11,10 +11,10 @@ One JSONL line per `(headword, pronunciation, part_of_speech)` tuple:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `headword` | string | ✓ | Atomic unit: single word (EN) or single character (ZH) |
-| `sort_key` | string | ✓ | Ordering key: lowercase (EN), pinyin (ZH) |
+| `sort_key` | string | ✓ | **Ordering + search only** (not shown in list). Lowercase (EN), pinyin (ZH). Used by Rust for sort order and search matching. |
 | `leading_key` | string | ✓ | Grouping key (equals headword for heads) |
-| `pronunciation` | string? | | Phonetic form: diacritical (Webster), pinyin (ZH) |
-| `part_of_speech` | string? | | POS label (noun, adj., v.t., 名, 动, etc.) |
+| `pronunciation` | string? | | **Display only:** shown in the list/detail "Pron." column. Diacritical (Webster), pinyin (ZH). Not used for sort or search. |
+| `part_of_speech` | string? | | POS label (noun, adj., 名, 动, etc.); shown in list/detail. |
 | `short_definition` | string | ✓ | One-line summary for list view |
 | `full_definition` | string | ✓ | Full text for detail view |
 | `phrases` | PhraseItem[]? | | Compound words/idioms grouped under this head |
@@ -27,7 +27,7 @@ Entries with the same headword but different POS or pronunciation are separate l
 
 - **Not shown in the word list.** The index shows only atomic headwords.
 - **Stored as `PhraseItem[]`** inside the head entry's `phrases` array.
-- **Not rendered** in the current detail view (focus is on the word list).
+- **Rendered** in the detail view under a "Phrases:" section (`form — definition` per line).
 
 ---
 
@@ -36,7 +36,6 @@ Entries with the same headword but different POS or pronunciation are separate l
 | Use case | Source | Entries | POS | Pron. |
 |----------|--------|---------|-----|-------|
 | **English** | Webster's 1913 | 109K | 96% | 96% (diacritical) |
-| **English** (alt) | Wordset | 77K | ✓ | ✗ |
 | **Chinese–Chinese** | chinese-xinhua | 17K | 9% (Chinese labels) | ✓ (pinyin) |
 | **Chinese–English** | CC-CEDICT | 13K | partial (inferred) | ✓ (pinyin) |
 
@@ -70,6 +69,7 @@ All dictionaries share the same column layout with a header row:
 Shows the selected entry's full information:
 - Headword, POS, pronunciation
 - Full definition text
+- Phrases/idioms (when present)
 
 ---
 

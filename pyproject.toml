@@ -26,7 +26,8 @@ select = [
 ignore = [
     "RUF001",  # ambiguous Unicode chars — intentional CJK in a dictionary project
     "RUF002",  # ambiguous Unicode in docstrings — same reason
+    "RUF003",  # ambiguous Unicode in comments — same reason (pinyin, source typos)
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["ingest"]
+known-first-party = ["common", "cedict", "webster1913", "xinhua"]

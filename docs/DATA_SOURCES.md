@@ -1,6 +1,6 @@
 # Data sources
 
-Reference for the dictionary data sources used to build packs. The unified pack schema is defined in `py/ingest/models.py` (Python) and `src/schema.rs` (Rust).
+Reference for the dictionary data sources used to build packs. The unified pack schema is defined in `py/common/models.py` (Python) and `src/schema.rs` (Rust).
 
 ---
 
@@ -26,29 +26,7 @@ Reference for the dictionary data sources used to build packs. The unified pack 
 
 ---
 
-## 2. Wordset Dictionary (English)
-
-**Origin:** [StevensDeptECE/Dictionaries](https://github.com/StevensDeptECE/Dictionaries) — wordset-dictionary.
-
-**Format:** Per-letter JSON files (`a.json`…`z.json`) plus `misc.json`. Each file is a single JSON object keyed by word.
-
-**Entry shape:**
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `word` | string | Headword |
-| `meanings[].def` | string | Definition text |
-| `meanings[].speech_part` | string | Part of speech |
-| `meanings[].example` | string? | Usage example |
-| `meanings[].synonyms` | string[]? | Synonyms |
-
-**Pack mapping:** One `HeadEntry` per (word, POS). No pronunciation (source lacks it).
-
-**Ingest:** `python3 py/ingest_wordset.py`
-
----
-
-## 3. chinese-xinhua (Chinese–Chinese)
+## 2. chinese-xinhua (Chinese–Chinese)
 
 **Origin:** [pwxcoo/chinese-xinhua](https://github.com/pwxcoo/chinese-xinhua). Data under `data/`.
 
@@ -66,7 +44,7 @@ Reference for the dictionary data sources used to build packs. The unified pack 
 
 ---
 
-## 4. CC-CEDICT (Chinese–English)
+## 3. CC-CEDICT (Chinese–English)
 
 **Origin:** [CC-CEDICT](https://cc-cedict.org/) via [MDBG](https://www.mdbg.net/).
 
@@ -82,11 +60,11 @@ Reference for the dictionary data sources used to build packs. The unified pack 
 
 ## Field coverage
 
-| Field | Webster's 1913 | Wordset | chinese-xinhua | CC-CEDICT |
-|-------|----------------|---------|----------------|-----------|
-| headword | ✓ | ✓ | ✓ | ✓ |
-| pronunciation | ✓ (diacritical) | ✗ | ✓ (pinyin) | ✓ (pinyin) |
-| part_of_speech | ✓ (96%) | ✓ | partial (9%) | partial (inferred) |
-| short_definition | ✓ | ✓ | ✓ | ✓ |
-| full_definition | ✓ | ✓ | ✓ | ✓ |
-| phrases/idioms | ✗ | ✗ | ✓ | ✓ |
+| Field | Webster's 1913 | chinese-xinhua | CC-CEDICT |
+|-------|----------------|----------------|-----------|
+| headword | ✓ | ✓ | ✓ |
+| pronunciation | ✓ (diacritical) | ✓ (pinyin) | ✓ (pinyin) |
+| part_of_speech | ✓ (96%) | partial (9%) | partial (inferred) |
+| short_definition | ✓ | ✓ | ✓ |
+| full_definition | ✓ | ✓ | ✓ |
+| phrases/idioms | ✗ | ✓ | ✓ |

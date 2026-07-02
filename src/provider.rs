@@ -5,6 +5,62 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::Path;
 
+/// Strip tone marks from pinyin to plain ASCII letters for search matching (e.g. "ài" -> "ai").
+fn pinyin_to_plain(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        let plain = match c {
+            'ā' | 'á' | 'ǎ' | 'à' => 'a',
+            'ē' | 'é' | 'ě' | 'è' => 'e',
+            'ī' | 'í' | 'ǐ' | 'ì' => 'i',
+            'ō' | 'ó' | 'ǒ' | 'ò' => 'o',
+            'ū' | 'ú' | 'ǔ' | 'ù' => 'u',
+            'ǖ' | 'ǘ' | 'ǚ' | 'ǜ' | 'ü' | 'Ü' => 'v',
+            'ɡ' => 'g',
+            _ => c,
+        };
+        out.push(plain);
+    }
+    out.to_lowercase()
+}
+
+/// Normalize pinyin for sort: base letter + tone digit so a<b<c and 1st<2nd<3rd<4th tone.
+fn pinyin_sort_key(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 4);
+    for c in s.chars() {
+        match c {
+            'ā' => out.push_str("a1"),
+            'á' => out.push_str("a2"),
+            'ǎ' => out.push_str("a3"),
+            'à' => out.push_str("a4"),
+            'ē' => out.push_str("e1"),
+            'é' => out.push_str("e2"),
+            'ě' => out.push_str("e3"),
+            'è' => out.push_str("e4"),
+            'ī' => out.push_str("i1"),
+            'í' => out.push_str("i2"),
+            'ǐ' => out.push_str("i3"),
+            'ì' => out.push_str("i4"),
+            'ō' => out.push_str("o1"),
+            'ó' => out.push_str("o2"),
+            'ǒ' => out.push_str("o3"),
+            'ò' => out.push_str("o4"),
+            'ū' => out.push_str("u1"),
+            'ú' => out.push_str("u2"),
+            'ǔ' => out.push_str("u3"),
+            'ù' => out.push_str("u4"),
+            'ǖ' => out.push_str("v1"),
+            'ǘ' => out.push_str("v2"),
+            'ǚ' => out.push_str("v3"),
+            'ǜ' => out.push_str("v4"),
+            'ü' | 'Ü' => out.push_str("v5"), // neutral
+            'ɡ' => out.push('g'),            // U+0261
+            _ => out.push(c),
+        }
+    }
+    out.to_lowercase()
+}
+
 /// Abstraction for dictionary pack data: metadata, listing, and detail lookup.
 pub trait Provider: Send + Sync {
     fn metadata(&self) -> &PackManifest;
@@ -119,9 +175,10 @@ impl LocalProvider {
             raw_entries.sort_by(|(_, a), (_, b)| {
                 let pa = primary_key.get(&a.headword).map_or("", String::as_str);
                 let pb = primary_key.get(&b.headword).map_or("", String::as_str);
-                pa.cmp(pb)
+                pinyin_sort_key(pa)
+                    .cmp(&pinyin_sort_key(pb))
                     .then_with(|| a.headword.cmp(&b.headword))
-                    .then_with(|| a.sort_key.cmp(&b.sort_key))
+                    .then_with(|| pinyin_sort_key(&a.sort_key).cmp(&pinyin_sort_key(&b.sort_key)))
             });
         } else {
             raw_entries.sort_by(|(_, a), (_, b)| {
@@ -219,9 +276,11 @@ impl Provider for LocalProvider {
             return Ok(None);
         }
         let q = query.to_lowercase();
-        let is_zh = self.manifest.language == "zh";
+        let is_pinyin_zh = self.manifest.language == "zh" && self.manifest.sort == "pinyin";
         let found = self.entries.iter().enumerate().find(|(_, e)| {
-            if is_zh {
+            if is_pinyin_zh {
+                pinyin_to_plain(&e.sort_key).contains(&pinyin_to_plain(&q))
+            } else if self.manifest.language == "zh" {
                 e.sort_key.to_lowercase().contains(&q)
             } else {
                 e.headword.to_lowercase().contains(&q)
@@ -238,9 +297,12 @@ impl Provider for LocalProvider {
             return Ok(None);
         }
         let q = query.to_lowercase();
-        let is_zh = self.manifest.language == "zh";
+        let is_pinyin_zh = self.manifest.language == "zh" && self.manifest.sort == "pinyin";
+        let q_plain = pinyin_to_plain(&q);
         let found = self.entries.iter().enumerate().find(|(_, e)| {
-            if is_zh {
+            if is_pinyin_zh {
+                pinyin_to_plain(&e.sort_key).starts_with(&q_plain)
+            } else if self.manifest.language == "zh" {
                 e.sort_key.to_lowercase().starts_with(&q)
             } else {
                 e.headword.to_lowercase().starts_with(&q)
@@ -387,6 +449,29 @@ mod tests {
         assert_eq!(provider.group_size(0), 2);
         assert_eq!(provider.group_size(1), 1);
 
+        // Search uses plain letters (ignore tone): "san" matches "sān"
+        let idx = provider.search_first_prefix("san").expect("search");
+        assert!(idx.is_some(), "'san' should match sān");
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn pinyin_search_plain_letters() {
+        let temp_dir = test_pack_dir().with_extension("pinyin_search");
+        fs::create_dir_all(&temp_dir).expect("create test dir");
+        let manifest_json = r#"{"id":"zh","name":"ZH","language":"zh","sort":"pinyin","entry_count":2,"data_file":"entries.jsonl"}"#;
+        fs::write(temp_dir.join("manifest.json"), manifest_json).expect("write manifest");
+        let entries = vec![
+            r#"{"headword":"爱","sort_key":"ài","pronunciation":"ài","short_definition":"love"}"#,
+            r#"{"headword":"一","sort_key":"yī","pronunciation":"yī","short_definition":"one"}"#,
+        ];
+        fs::write(temp_dir.join("entries.jsonl"), entries.join("\n")).expect("write entries");
+        let manifest: PackManifest = serde_json::from_str(manifest_json).expect("parse");
+        let provider = LocalProvider::open(&temp_dir, manifest).expect("open");
+        // Plain "ai" (no tone) must match "ài"
+        let found = provider.search_first_prefix("ai").expect("search");
+        assert_eq!(found, Some(0));
         let _ = fs::remove_dir_all(&temp_dir);
     }
 

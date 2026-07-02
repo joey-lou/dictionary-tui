@@ -64,14 +64,14 @@
 
 ```json
 {
-  "id": "wordset-en",
-  "name": "Wordset Dictionary",
+  "id": "webster1913-en",
+  "name": "Webster's 1913",
   "language": "en",
   "sort": "alphabetical",
-  "entry_count": 77000,
+  "entry_count": 109000,
   "data_file": "entries.jsonl",
-  "license": "CC BY 4.0",
-  "source_url": "https://github.com/StevensDeptECE/Dictionaries"
+  "license": "Public Domain",
+  "source_url": "https://www.gutenberg.org/ebooks/29765"
 }
 ```
 
@@ -104,7 +104,6 @@ Every `entries.jsonl` line is a **head entry** — one per (headword, pronunciat
 | Pack ID | Source | Language | Heads | POS | Pron. |
 |---------|--------|----------|-------|-----|-------|
 | `webster1913-en` | [Webster's 1913](https://www.gutenberg.org/ebooks/29765) | EN | 109K | 96% | 96% |
-| `wordset-en` | [Wordset](https://github.com/StevensDeptECE/Dictionaries) | EN | 77K | ✓ | ✗ |
 | `xinhua-zh-zh` | [chinese-xinhua](https://github.com/pwxcoo/chinese-xinhua) | ZH (中中) | 17K | 9% | ✓ |
 | `cc-cedict` | [CC-CEDICT](https://cc-cedict.org/) | ZH-EN (中英) | 13K | partial | ✓ |
 
@@ -134,18 +133,16 @@ dictionary-tui/
 │   └── config.rs           # User configuration
 ├── packs/                  # Bundled dictionary packs
 │   ├── webster1913-en/
-│   ├── wordset-en/
 │   ├── xinhua-zh-zh/
 │   └── cc-cedict/
 ├── py/
-│   ├── ingest/             # Shared ingest library
-│   │   ├── models.py       # HeadEntry, PhraseItem, PackManifest
-│   │   ├── io_utils.py     # write_pack, merge helpers
-│   │   └── sources/        # Per-source parsers
-│   ├── ingest_webster1913.py # Webster's 1913 EN ingest CLI
-│   ├── ingest_wordset.py   # Wordset EN ingest CLI
-│   ├── ingest_xinhua.py    # Xinhua ZH-ZH ingest CLI
-│   └── ingest_cedict.py    # CC-CEDICT ZH-EN ingest CLI
+│   ├── common/             # Shared models, I/O, ETL framework
+│   ├── webster1913/        # Webster's 1913 extractor + pipeline
+│   ├── xinhua/             # Xinhua ZH-ZH extractor + pipeline
+│   ├── cedict/             # CC-CEDICT extractor + pipeline
+│   ├── ingest_webster1913.py # Thin CLI entrypoint
+│   ├── ingest_xinhua.py
+│   └── ingest_cedict.py
 ├── docs/                   # Design documentation
 ├── Cargo.toml
 ├── PLAN.md                 # This document

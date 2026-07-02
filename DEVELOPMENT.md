@@ -71,12 +71,11 @@ The app discovers packs from both:
 1. Config directory (`ProjectDirs(...)/packs`)
 2. Repo-local `packs/` (bundled packs for development)
 
-Four packs ship with the repo:
+Three packs ship with the repo:
 
 | Pack | Command | Description |
 |------|---------|-------------|
 | **Webster's 1913** | `python3 py/ingest_webster1913.py` | 109K English words with POS, pronunciation, and definitions |
-| **Wordset EN** | `python3 py/ingest_wordset.py` | 77K English words (POS, definitions; no pronunciation) |
 | **Xinhua ZH-ZH** | `python3 py/ingest_xinhua.py` | 17K Chinese characters with pinyin, Chinese definitions + phrases/idioms |
 | **CC-CEDICT ZH-EN** | `python3 py/ingest_cedict.py` | 13K Chinese character heads with pinyin, POS, English definitions |
 
@@ -85,7 +84,7 @@ Use `--help` on any script for options (e.g. `--source-file`, `--out`).
 
 ### Adding a new dictionary source
 
-See `py/ingest/README.md` for the pack format and how to add a new source.
+See `py/README.md` for the pack format and how to add a new source.
 
 ## Optional: cargo-audit
 
