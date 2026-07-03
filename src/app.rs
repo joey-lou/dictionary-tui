@@ -2,7 +2,7 @@
 
 use crate::config::{load_config, save_config, AppConfig};
 use crate::pack::discover_packs;
-use crate::provider::{LocalProvider, Provider};
+use crate::provider::{format_pronunciation_display, LocalProvider, Provider};
 use crate::schema::{ListEntry, PackManifest};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use crossterm::terminal::{
@@ -24,7 +24,8 @@ type AppResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 const INCREMENT_PRESETS: [u64; 6] = [1, 2, 5, 10, 50, 100];
 const HEADWORD_COL: usize = 16;
-const PRON_COL: usize = 12;
+const PRON_COL_EN: usize = 12;
+const PRON_COL_ZH: usize = 18;
 const POS_COL: usize = 6;
 const INDICATOR_COL: usize = 2;
 
@@ -542,19 +543,25 @@ fn truncate_str(s: &str, max_chars: usize) -> String {
 }
 
 /// Format a list row: indicator, headword, POS, pronunciation, definition.
-fn format_list_row(indicator: &str, entry: &ListEntry, def_max: usize) -> String {
+fn format_list_row(
+    indicator: &str,
+    entry: &ListEntry,
+    def_max: usize,
+    language: &str,
+    pron_col: usize,
+) -> String {
     let head = truncate_str(&entry.headword, HEADWORD_COL.saturating_sub(1));
     let pos = truncate_str(
         entry.part_of_speech.as_deref().unwrap_or(""),
         POS_COL.saturating_sub(1),
     );
     let pron = truncate_str(
-        entry.pronunciation.as_deref().unwrap_or(""),
-        PRON_COL.saturating_sub(1),
+        &format_pronunciation_display(language, entry.pronunciation.as_deref()),
+        pron_col.saturating_sub(1),
     );
     let def = truncate_str(entry.short_definition.as_deref().unwrap_or(""), def_max);
     format!(
-        "{indicator:<INDICATOR_COL$}{head:<HEADWORD_COL$} {pos:<POS_COL$} {pron:<PRON_COL$} {def}"
+        "{indicator:<INDICATOR_COL$}{head:<HEADWORD_COL$} {pos:<POS_COL$} {pron:<pron_col$} {def}"
     )
 }
 
@@ -581,14 +588,21 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
         .constraints([Constraint::Length(1), Constraint::Min(1)])
         .areas(inner);
 
-    let fixed_cols = INDICATOR_COL + HEADWORD_COL + 1 + POS_COL + 1 + PRON_COL + 1;
+    let language = app.provider.metadata().language.as_str();
+    let pron_col = if language == "zh" {
+        PRON_COL_ZH
+    } else {
+        PRON_COL_EN
+    };
+
+    let fixed_cols = INDICATOR_COL + HEADWORD_COL + 1 + POS_COL + 1 + pron_col + 1;
     let def_max = inner
         .width
         .saturating_sub(u16::try_from(fixed_cols).unwrap_or(40))
         .max(8) as usize;
 
     let header_line = format!(
-        "{:<INDICATOR_COL$}{:<HEADWORD_COL$} {:<POS_COL$} {:<PRON_COL$} {}",
+        "{:<INDICATOR_COL$}{:<HEADWORD_COL$} {:<POS_COL$} {:<pron_col$} {}",
         "", "Word", "POS", "Pron.", "Definition"
     );
     let header = Paragraph::new(header_line)
@@ -631,7 +645,7 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
                 }
             };
 
-            let line = format_list_row(indicator, entry, def_max);
+            let line = format_list_row(indicator, entry, def_max, language, pron_col);
             items.push(ListItem::new(Line::from(line)));
         }
     }
@@ -672,6 +686,10 @@ fn render_detail(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, ap
             lines.push(format!("Part of speech: {pos}"));
         }
         if let Some(pron) = detail.pronunciation {
+            let pron = format_pronunciation_display(
+                app.provider.metadata().language.as_str(),
+                Some(pron.as_str()),
+            );
             lines.push(format!("Pronunciation: {pron}"));
         }
         lines.push(String::new());

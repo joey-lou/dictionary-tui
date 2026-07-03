@@ -24,6 +24,115 @@ fn pinyin_to_plain(s: &str) -> String {
     out.to_lowercase()
 }
 
+/// One syllable in plain letters without tone digit (e.g. "ai1" -> "ai", "lu:2" -> "lv", "nǚ" -> "nv").
+fn pinyin_syllable_base(syllable: &str) -> String {
+    let mut s = pinyin_to_plain(syllable);
+    if let Some(stripped) = s.strip_suffix(['1', '2', '3', '4', '5']) {
+        s = stripped.to_string();
+    }
+    s = s.replace("u:", "v");
+    s
+}
+
+/// Plain searchable syllable bases for a `sort_key` (space-separated syllables).
+fn pinyin_syllable_bases(sort_key: &str) -> Vec<String> {
+    sort_key
+        .split_whitespace()
+        .map(pinyin_syllable_base)
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+/// Prefix match on pinyin syllables; avoids "ni" matching "niu" (CC-CEDICT numbered keys).
+fn pinyin_syllable_prefix_match(sort_key: &str, query: &str) -> bool {
+    let q = pinyin_query_plain(query);
+    if q.is_empty() {
+        return false;
+    }
+    pinyin_syllable_bases(sort_key).iter().any(|base| {
+        if !base.starts_with(&q) {
+            return false;
+        }
+        if base.len() == q.len() {
+            return true;
+        }
+        // "ni" must not match syllable base "niu"
+        !base
+            .chars()
+            .nth(q.len())
+            .is_some_and(|c| c.is_ascii_alphabetic())
+    })
+}
+
+/// Substring match on concatenated syllable bases (for `search_first`).
+fn pinyin_syllable_contains_match(sort_key: &str, query: &str) -> bool {
+    let q = pinyin_query_plain(query);
+    if q.is_empty() {
+        return false;
+    }
+    let joined: String = pinyin_syllable_bases(sort_key).concat();
+    joined.contains(&q)
+}
+
+/// Normalize a search query to plain letters (strip tone digits from numbered pinyin).
+fn pinyin_query_plain(query: &str) -> String {
+    let query = query.trim();
+    if query.is_empty() {
+        return String::new();
+    }
+    if query.split_whitespace().count() > 1 {
+        return pinyin_syllable_bases(query).concat();
+    }
+    pinyin_syllable_base(query)
+}
+
+fn query_has_cjk(query: &str) -> bool {
+    query.chars().any(|c| {
+        let u = u32::from(c);
+        (0x4E00..=0x9FFF).contains(&u)
+            || (0x3400..=0x4DBF).contains(&u)
+            || (0x20000..=0x2A6DF).contains(&u)
+    })
+}
+
+fn zh_entry_matches_prefix(entry: &ListEntry, query: &str, sort: &str) -> bool {
+    if query_has_cjk(query) {
+        return entry.headword.starts_with(query);
+    }
+    if sort == "pinyin" {
+        return pinyin_syllable_prefix_match(&entry.sort_key, query);
+    }
+    entry
+        .sort_key
+        .to_lowercase()
+        .starts_with(&query.to_lowercase())
+}
+
+fn zh_entry_matches_contains(entry: &ListEntry, query: &str, sort: &str) -> bool {
+    if query_has_cjk(query) {
+        return entry.headword.contains(query);
+    }
+    if sort == "pinyin" {
+        return pinyin_syllable_contains_match(&entry.sort_key, query);
+    }
+    entry
+        .sort_key
+        .to_lowercase()
+        .contains(&query.to_lowercase())
+}
+
+/// Display pronunciation in the list/detail columns (lowercase tone-marked pinyin for Chinese).
+pub fn format_pronunciation_display(language: &str, pronunciation: Option<&str>) -> String {
+    let Some(pron) = pronunciation else {
+        return String::new();
+    };
+    if language == "zh" {
+        pron.to_lowercase()
+    } else {
+        pron.to_string()
+    }
+}
+
 /// Normalize pinyin for sort: base letter + tone digit so a<b<c and 1st<2nd<3rd<4th tone.
 fn pinyin_sort_key(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 4);
@@ -275,17 +384,18 @@ impl Provider for LocalProvider {
         if query.is_empty() {
             return Ok(None);
         }
-        let q = query.to_lowercase();
-        let is_pinyin_zh = self.manifest.language == "zh" && self.manifest.sort == "pinyin";
-        let found = self.entries.iter().enumerate().find(|(_, e)| {
-            if is_pinyin_zh {
-                pinyin_to_plain(&e.sort_key).contains(&pinyin_to_plain(&q))
-            } else if self.manifest.language == "zh" {
-                e.sort_key.to_lowercase().contains(&q)
-            } else {
-                e.headword.to_lowercase().contains(&q)
-            }
-        });
+        let found = if self.manifest.language == "zh" {
+            self.entries
+                .iter()
+                .enumerate()
+                .find(|(_, e)| zh_entry_matches_contains(e, query, self.manifest.sort.as_str()))
+        } else {
+            let q = query.to_lowercase();
+            self.entries
+                .iter()
+                .enumerate()
+                .find(|(_, e)| e.headword.to_lowercase().contains(&q))
+        };
         Ok(found.map(|(i, _)| i as u64))
     }
 
@@ -296,18 +406,18 @@ impl Provider for LocalProvider {
         if query.is_empty() {
             return Ok(None);
         }
-        let q = query.to_lowercase();
-        let is_pinyin_zh = self.manifest.language == "zh" && self.manifest.sort == "pinyin";
-        let q_plain = pinyin_to_plain(&q);
-        let found = self.entries.iter().enumerate().find(|(_, e)| {
-            if is_pinyin_zh {
-                pinyin_to_plain(&e.sort_key).starts_with(&q_plain)
-            } else if self.manifest.language == "zh" {
-                e.sort_key.to_lowercase().starts_with(&q)
-            } else {
-                e.headword.to_lowercase().starts_with(&q)
-            }
-        });
+        let found = if self.manifest.language == "zh" {
+            self.entries
+                .iter()
+                .enumerate()
+                .find(|(_, e)| zh_entry_matches_prefix(e, query, self.manifest.sort.as_str()))
+        } else {
+            let q = query.to_lowercase();
+            self.entries
+                .iter()
+                .enumerate()
+                .find(|(_, e)| e.headword.to_lowercase().starts_with(&q))
+        };
         Ok(found.map(|(i, _)| i as u64))
     }
 
@@ -473,6 +583,37 @@ mod tests {
         let found = provider.search_first_prefix("ai").expect("search");
         assert_eq!(found, Some(0));
         let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn cedict_numbered_pinyin_search() {
+        let temp_dir = test_pack_dir().with_extension("cedict_search");
+        fs::create_dir_all(&temp_dir).expect("create test dir");
+        let manifest_json = r#"{"id":"cc-cedict","name":"CEDICT","language":"zh","sort":"pinyin","entry_count":4,"data_file":"entries.jsonl"}"#;
+        fs::write(temp_dir.join("manifest.json"), manifest_json).expect("write manifest");
+        let entries = vec![
+            r#"{"headword":"拗","sort_key":"niu4","pronunciation":"niù","short_definition":"stubborn"}"#,
+            r#"{"headword":"你","sort_key":"ni3","pronunciation":"nǐ","short_definition":"you"}"#,
+            r#"{"headword":"女","sort_key":"nu:3","pronunciation":"nǚ","short_definition":"woman"}"#,
+            r#"{"headword":"驴","sort_key":"lu:2","pronunciation":"lǘ","short_definition":"donkey"}"#,
+        ];
+        fs::write(temp_dir.join("entries.jsonl"), entries.join("\n")).expect("write entries");
+        let manifest: PackManifest = serde_json::from_str(manifest_json).expect("parse");
+        let provider = LocalProvider::open(&temp_dir, manifest).expect("open");
+
+        assert_eq!(provider.search_first_prefix("ni").expect("ni"), Some(1));
+        assert_eq!(provider.search_first_prefix("ni3").expect("ni3"), Some(1));
+        assert_eq!(provider.search_first_prefix("lv").expect("lv"), Some(0));
+        assert_eq!(provider.search_first_prefix("nv").expect("nv"), Some(3));
+        assert_eq!(provider.search_first_prefix("女").expect("女"), Some(3));
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn format_pronunciation_display_lowercases_zh() {
+        assert_eq!(format_pronunciation_display("zh", Some("Āi")), "āi");
+        assert_eq!(format_pronunciation_display("en", Some("Apˈple")), "Apˈple");
     }
 
     #[test]
