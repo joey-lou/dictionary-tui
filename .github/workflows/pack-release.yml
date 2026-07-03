@@ -37,5 +37,11 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Show catalog for commit reminder
-        run: cat packs/catalog.json
+      - name: Sync catalog to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout main
+          git add packs/catalog.json
+          git diff --staged --quiet || git commit -m "Update pack catalog for ${{ github.ref_name }}"
+          git push origin main
