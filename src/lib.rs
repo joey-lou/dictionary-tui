@@ -1,6 +1,4 @@
 //! Dictionary TUI — terminal UI for browsing dictionary packs.
-//!
-//! See [PLAN.md](../PLAN.md) for architecture and pack format.
 
 mod app;
 pub mod cli;

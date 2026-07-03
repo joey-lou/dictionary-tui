@@ -3,6 +3,8 @@
 .env
 .idea
 .vscode
+.cursor/
+.ruff_cache/
 *.swp
 *.swo
 .rtw
