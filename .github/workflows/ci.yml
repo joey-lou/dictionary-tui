@@ -37,6 +37,13 @@ jobs:
       - name: Clippy
         run: cargo clippy -- -D warnings
 
+      - name: Verify publishable crate size
+        run: |
+          cargo package --quiet
+          size=$(stat -c%s target/package/dictionary-tui-*.crate)
+          echo "Crate size: $size bytes"
+          test "$size" -lt 10485760
+
   test:
     runs-on: ubuntu-latest
     steps:

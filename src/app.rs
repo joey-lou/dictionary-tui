@@ -234,8 +234,7 @@ impl AppState {
         }
         let seed = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() ^ u64::from(d.subsec_nanos()))
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_secs() ^ u64::from(d.subsec_nanos()));
         let max_offset = total.saturating_sub(self.page_size as u64).max(1);
         self.scroll_offset = seed % max_offset;
         self.reload_page()?;

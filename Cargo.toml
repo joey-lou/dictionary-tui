@@ -10,6 +10,17 @@ repository = "https://github.com/joey-lou/dictionary-tui"
 homepage = "https://github.com/joey-lou/dictionary-tui"
 keywords = ["dictionary", "tui", "chinese", "english", "terminal"]
 categories = ["command-line-utilities"]
+exclude = [
+  "packs/*/entries.jsonl",
+  "py/",
+  "scripts/",
+  "dist/",
+  ".github/",
+  ".pre-commit-config.yaml",
+  ".cursor/",
+  ".ruff_cache/",
+  ".rtw/",
+]
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
