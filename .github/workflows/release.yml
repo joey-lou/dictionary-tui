@@ -1,0 +1,154 @@
+name: Release
+
+# Tag on main → route by prefix:
+#   v*       → GitHub Release (binaries) + crates.io publish
+#   packs-v* → GitHub Release (pack tarballs) + sync catalog to main
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "packs-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tag must be on latest main
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+            echo "Release tags must point at the current main branch tip."
+            echo "  tag:  $(git rev-parse HEAD)"
+            echo "  main: $(git rev-parse origin/main)"
+            exit 1
+          fi
+
+      - name: Validate tag prefix
+        run: |
+          case "${{ github.ref_name }}" in
+            v*)       echo "App release: ${{ github.ref_name }}" ;;
+            packs-v*) echo "Pack release: ${{ github.ref_name }}" ;;
+            *)        echo "Unsupported tag: ${{ github.ref_name }}"; exit 1 ;;
+          esac
+
+      - name: Match v-tag to Cargo.toml version
+        if: startsWith(github.ref_name, 'v')
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          crate_version=$(grep -m1 '^version' Cargo.toml | sed -E 's/version *= *"([^"]+)".*/\1/')
+          if [ "$tag_version" != "$crate_version" ]; then
+            echo "Tag ${{ github.ref_name }} must match Cargo.toml version ($crate_version)"
+            exit 1
+          fi
+
+  release-packs:
+    needs: validate
+    if: startsWith(github.ref_name, 'packs-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build pack tarballs
+        run: |
+          chmod +x scripts/build-pack-release.sh
+          ./scripts/build-pack-release.sh "${GITHUB_REF_NAME}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: |
+            ```bash
+            dictionary-tui pack install --all
+            ```
+
+            Checksums: `packs/catalog.json` on main.
+          files: dist/*.tar.gz
+
+      - name: Sync catalog to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          cp packs/catalog.json /tmp/pack-catalog.json
+          git fetch origin main
+          git checkout main
+          cp /tmp/pack-catalog.json packs/catalog.json
+          git add packs/catalog.json
+          git diff --staged --quiet || git commit -m "Update pack catalog for ${{ github.ref_name }}"
+          git push origin main
+
+  build-binaries:
+    needs: validate
+    if: startsWith(github.ref_name, 'v')
+    name: build (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: linux-x86_64
+            asset: dictionary-tui-linux-x86_64
+          - os: macos-latest
+            label: macos-arm64
+            asset: dictionary-tui-macos-arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Prepare artifact
+        run: |
+          cp target/release/dictionary-tui "${{ matrix.asset }}"
+          chmod +x "${{ matrix.asset }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+
+  release-app:
+    needs: build-binaries
+    if: startsWith(github.ref_name, 'v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: dist/*
+
+  publish-crate:
+    needs: validate
+    if: startsWith(github.ref_name, 'v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish to crates.io
+        run: cargo publish --token "${{ secrets.CARGO_REGISTRY_TOKEN }}"

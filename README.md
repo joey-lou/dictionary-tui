@@ -79,22 +79,26 @@ Releases are tagged `packs-v*` on [GitHub Releases](https://github.com/joey-lou/
 
 **Rebuild packs:** `python3 py/ingest_webster1913.py` (and `ingest_xinhua.py`, `ingest_cedict.py`). Details in [py/README.md](py/README.md).
 
-### Releases (tag → GitHub Actions)
+### Releases
 
-| Tag pattern | Workflow | Publishes |
-|-------------|----------|-----------|
-| `v*` (e.g. `v0.1.0`) | `app-release.yml` | Linux + macOS binaries |
-| `packs-v*` (e.g. `packs-v1.0.0`) | `pack-release.yml` | Pack tarballs + updates `packs/catalog.json` on `main` |
+Tag the **latest `main` commit** — CI routes by prefix (`release.yml`):
+
+| Tag | Example | What ships |
+|-----|---------|------------|
+| `v*` | `v0.1.0` | crates.io publish + GitHub Release binaries (Linux/macOS) |
+| `packs-v*` | `packs-v1.1.0` | GitHub Release pack tarballs + `packs/catalog.json` sync to `main` |
+
+`v*` tag must match `version` in `Cargo.toml` (e.g. tag `v0.1.0` → `version = "0.1.0"`).
+
+**One-time:** add repo secret `CARGO_REGISTRY_TOKEN` ([crates.io token](https://crates.io/settings/tokens)) for `v*` publishes.
 
 ```bash
-# App binary
+# App + crates.io (bump Cargo.toml version first)
 git tag v0.1.0 && git push origin v0.1.0
 
 # Dictionary packs (after updating packs/)
 git tag packs-v1.1.0 && git push origin packs-v1.1.0
 ```
-
-Release title is the tag name. `./scripts/build-pack-release.sh` is optional for local preview only — CI builds tarballs on tag push.
 
 ## License
 
