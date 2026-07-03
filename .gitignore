@@ -8,5 +8,6 @@
 .rtw
 .cache
 tmp/
+dist/
 __pycache__/
 *.pyc

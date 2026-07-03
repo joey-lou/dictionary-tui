@@ -66,12 +66,23 @@ Fix format and lint issues locally before pushing.
 
 ## Dictionary packs
 
-The app discovers packs from both:
+The app discovers packs from:
 
-1. Config directory (`ProjectDirs(...)/packs`)
-2. Repo-local `packs/` (bundled packs for development)
+1. **Config directory** — `ProjectDirs(...)/packs` (where `pack install` writes)
+2. **Repo-local `packs/`** — bundled for `cargo run` from a clone
 
-Three packs ship with the repo:
+### Installing packs (end users)
+
+```bash
+dictionary-tui pack list
+dictionary-tui pack install --all
+```
+
+Downloads from GitHub Releases (`packs/catalog.json`). See `README.md`.
+
+### Bundled packs (development)
+
+Three packs ship in the repo:
 
 | Pack | Command | Description |
 |------|---------|-------------|
@@ -81,6 +92,16 @@ Three packs ship with the repo:
 
 All ingest scripts auto-download source data into `.cache/` on first run.
 Use `--help` on any script for options (e.g. `--source-file`, `--out`).
+
+### Publishing pack releases
+
+```bash
+./scripts/build-pack-release.sh packs-v1.0.0   # dist/*.tar.gz + packs/catalog.json
+git add packs/catalog.json && git commit -m "Update pack catalog for packs-v1.0.0"
+git tag packs-v1.0.0 && git push && git push --tags
+```
+
+The `pack-release` workflow uploads tarballs to the GitHub Release.
 
 ### Adding a new dictionary source
 

@@ -14,4 +14,6 @@ The app requires a real TTY — running `cargo run` from a non-interactive shell
 
 ### Dictionary packs
 
-Three packs are committed under `packs/` (`webster1913-en`, `xinhua-zh-zh`, `cc-cedict`). The app auto-discovers them at startup — no ingest step is needed to run. Rebuild packs with the `py/ingest_*.py` scripts (see `DEVELOPMENT.md`).
+Three packs are committed under `packs/` (`webster1913-en`, `xinhua-zh-zh`, `cc-cedict`). The app auto-discovers them at startup for dev builds from a clone.
+
+End users install packs with `dictionary-tui pack install --all` (see `README.md`). Rebuild packs with the `py/ingest_*.py` scripts.

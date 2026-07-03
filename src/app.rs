@@ -346,9 +346,10 @@ impl Drop for TerminalGuard {
 pub fn run() -> AppResult<()> {
     let packs = discover_packs()?;
     if packs.is_empty() {
-        return Err(
-            "no dictionary packs found. Add one under the config packs directory and retry.".into(),
-        );
+        return Err("no dictionary packs found.\n\
+             Install packs with: dictionary-tui pack install --all\n\
+             Or clone the repo and run from source (packs/ is bundled for dev builds)."
+            .into());
     }
     let _guard = TerminalGuard::new()?;
     let backend = CrosstermBackend::new(io::stdout());

@@ -1,0 +1,41 @@
+name: Pack release
+
+on:
+  push:
+    tags:
+      - "packs-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build pack tarballs
+        run: |
+          chmod +x scripts/build-pack-release.sh
+          ./scripts/build-pack-release.sh "${GITHUB_REF_NAME}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Dictionary packs ${{ github.ref_name }}
+          body: |
+            Dictionary pack tarballs for [dictionary-tui](https://github.com/joey-lou/dictionary-tui).
+
+            Install with:
+            ```bash
+            dictionary-tui pack install --all
+            ```
+
+            Checksums are in `packs/catalog.json` on the main branch.
+          files: dist/*.tar.gz
+          draft: false
+          prerelease: false
+
+      - name: Show catalog for commit reminder
+        run: cat packs/catalog.json
