@@ -9,6 +9,14 @@ English ([Webster's 1913](https://www.gutenberg.org/ebooks/29765)), Chinese–Ch
 **Requirements:** Rust ≥ 1.88 (`rustup update stable`).
 
 ```bash
+cargo install dictionary-tui
+dictionary-tui pack install --all
+dictionary-tui
+```
+
+Or from git:
+
+```bash
 cargo install --git https://github.com/joey-lou/dictionary-tui
 dictionary-tui pack install --all
 dictionary-tui
