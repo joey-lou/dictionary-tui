@@ -25,11 +25,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: Dictionary packs ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           body: |
             Dictionary pack tarballs for [dictionary-tui](https://github.com/joey-lou/dictionary-tui).
 
-            Install with:
             ```bash
             dictionary-tui pack install --all
             ```

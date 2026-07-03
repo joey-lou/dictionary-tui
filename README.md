@@ -71,13 +71,22 @@ Releases are tagged `packs-v*` on [GitHub Releases](https://github.com/joey-lou/
 
 **Rebuild packs:** `python3 py/ingest_webster1913.py` (and `ingest_xinhua.py`, `ingest_cedict.py`). Details in [py/README.md](py/README.md).
 
-**Ship a pack release:**
+### Releases (tag → GitHub Actions)
+
+| Tag pattern | Workflow | Publishes |
+|-------------|----------|-----------|
+| `v*` (e.g. `v0.1.0`) | `app-release.yml` | Linux + macOS binaries |
+| `packs-v*` (e.g. `packs-v1.0.0`) | `pack-release.yml` | Pack tarballs + updates `packs/catalog.json` on `main` |
 
 ```bash
-./scripts/build-pack-release.sh packs-v1.0.0
-git add packs/catalog.json && git commit -m "Update pack catalog for packs-v1.0.0"
-git tag packs-v1.0.0 && git push && git push --tags
+# App binary
+git tag v0.1.0 && git push origin v0.1.0
+
+# Dictionary packs (after updating packs/)
+git tag packs-v1.1.0 && git push origin packs-v1.1.0
 ```
+
+Release title is the tag name. `./scripts/build-pack-release.sh` is optional for local preview only — CI builds tarballs on tag push.
 
 ## License
 
