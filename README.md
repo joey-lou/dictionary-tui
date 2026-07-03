@@ -1,110 +1,119 @@
 # dictionary-tui
 
-A terminal UI for browsing local dictionary packs. Flip through paginated word lists, search by prefix, and expand entries for full definitions and phrases.
+[![Crates.io](https://img.shields.io/crates/v/dictionary-tui?logo=rust)](https://crates.io/crates/dictionary-tui)
+[![CI](https://img.shields.io/github/actions/workflow/status/joey-lou/dictionary-tui/ci.yml?branch=main&label=CI)](https://github.com/joey-lou/dictionary-tui/actions/workflows/ci.yml)
+[![GitHub release](https://img.shields.io/github/v/release/joey-lou/dictionary-tui)](https://github.com/joey-lou/dictionary-tui/releases)
+[![License: MIT](https://img.shields.io/crates/l/dictionary-tui)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-1.88+-orange?logo=rust)](https://www.rust-lang.org/)
 
-English ([Webster's 1913](https://www.gutenberg.org/ebooks/29765)), Chinese–Chinese ([Xinhua](https://github.com/pwxcoo/chinese-xinhua)), and Chinese–English ([CC-CEDICT](https://cc-cedict.org/)).
+Terminal dictionary browser — paginated word lists, prefix search, and expandable entries.  
+English ([Webster's 1913](https://www.gutenberg.org/ebooks/29765)), Chinese–Chinese ([Xinhua](https://github.com/pwxcoo/chinese-xinhua)), Chinese–English ([CC-CEDICT](https://cc-cedict.org/)).
 
-## Quick start
+## Install & run
 
-**Requirements:** Rust ≥ 1.88 (`rustup update stable`).
+**Requires:** Rust ≥ 1.88 and a real terminal (TTY).
 
 ```bash
 cargo install dictionary-tui
-dictionary-tui pack install --all
+dictionary-tui pack install --all   # ~22 MB of dictionary data
 dictionary-tui
 ```
 
-Or from git:
+<details>
+<summary>Other install options</summary>
+
+**From git**
 
 ```bash
 cargo install --git https://github.com/joey-lou/dictionary-tui
 dictionary-tui pack install --all
-dictionary-tui
 ```
 
-Or clone and run (includes packs under `packs/`, no download needed):
+**Clone & run** (bundled `packs/` in repo — no download)
 
 ```bash
-git clone https://github.com/joey-lou/dictionary-tui.git
-cd dictionary-tui
+git clone https://github.com/joey-lou/dictionary-tui.git && cd dictionary-tui
 cargo run --release
 ```
 
-The app needs a real TTY (your terminal emulator, not a non-interactive shell).
+**Pre-built binaries** — [GitHub Releases](https://github.com/joey-lou/dictionary-tui/releases) (`v*` tags, Linux x86_64 + macOS arm64)
+
+</details>
+
+## Features
+
+- **Three dictionaries** — English, 中中, 中英; install all or pick one
+- **Fast prefix search** — English headwords; pinyin or Chinese characters for ZH packs
+- **Page-flip browsing** — jump by page, random page, collapse/expand entries
+- **Offline** — packs stored locally after install; no network needed to look up words
 
 ## Dictionary packs
 
-Installed packs live in:
-
-| Platform | Path |
-|----------|------|
-| macOS | `~/Library/Application Support/dictionary-tui/packs/` |
-| Linux | `~/.config/dictionary-tui/packs/` |
-
-```bash
-dictionary-tui pack list                    # available + installed
-dictionary-tui pack install --all             # download from GitHub Releases
-dictionary-tui pack install webster1913-en    # one pack
-dictionary-tui pack install --from ./foo.tar.gz cc-cedict
-dictionary-tui pack update
-```
-
-| Pack ID | Language | Download size |
-|---------|----------|---------------|
+| Pack ID | Language | Size |
+|---------|----------|------|
 | `webster1913-en` | English | ~6.5 MB |
 | `xinhua-zh-zh` | Chinese (中中) | ~12 MB |
 | `cc-cedict` | Chinese–English (中英) | ~3.4 MB |
 
-Releases are tagged `packs-v*` on [GitHub Releases](https://github.com/joey-lou/dictionary-tui/releases). Checksums are in `packs/catalog.json`.
+```bash
+dictionary-tui pack list
+dictionary-tui pack install --all
+dictionary-tui pack install webster1913-en cc-cedict
+dictionary-tui pack update
+```
+
+Installed to `~/Library/Application Support/dictionary-tui/packs/` (macOS) or `~/.config/dictionary-tui/packs/` (Linux).
+
+Pack releases are tagged `packs-v*` on [GitHub Releases](https://github.com/joey-lou/dictionary-tui/releases); checksums in [`packs/catalog.json`](packs/catalog.json).
 
 ## Key bindings
 
 | Key | Action |
 |-----|--------|
-| `j` / `k` or arrows | Move selection |
-| `h` / `l` or Page Up/Down | Previous / next page |
-| `Space` | Toggle collapsed / expanded view |
+| `j` / `k`, arrows | Move selection |
+| `h` / `l`, Page Up/Down | Previous / next page |
+| `Space` | Collapse / expand entry |
 | `Enter` | Detail view |
-| `Esc` / Backspace | Back to list |
-| `/` or `s` | Prefix search (pinyin or Chinese) |
+| `Esc`, Backspace | Back to list |
+| `/`, `s` | Prefix search |
 | `r` | Random page |
-| `+` / `-` or `i` | Page-jump increment |
+| `+` / `-`, `i` | Page-jump increment |
 | `q` | Quit |
 
 ## Development
 
-**Check:** `cargo fmt && cargo clippy -- -D warnings && cargo test` (CI runs the same on push/PR).
+```bash
+cargo fmt && cargo clippy -- -D warnings && cargo test
+```
 
-**Optional:** `pre-commit install` — hooks for fmt, clippy, tests, and `ruff check py/`.
+Optional: `pre-commit install` (fmt, clippy, tests, `ruff check py/`).
 
-**Rebuild packs:** `python3 py/ingest_webster1913.py` (and `ingest_xinhua.py`, `ingest_cedict.py`). Details in [py/README.md](py/README.md).
+**Rebuild pack data** — `python3 py/ingest_webster1913.py` (also `ingest_xinhua.py`, `ingest_cedict.py`). See [py/README.md](py/README.md).
 
-### Releases
+<details>
+<summary>Releasing (maintainers)</summary>
 
-Tag the **latest `main` commit** — CI routes by prefix (`release.yml`):
+Tag the **latest `main` commit** — [`.github/workflows/release.yml`](.github/workflows/release.yml) routes by prefix:
 
-| Tag | Example | What ships |
-|-----|---------|------------|
-| `v*` | `v0.1.0` | crates.io publish + GitHub Release binaries (Linux/macOS) |
-| `packs-v*` | `packs-v1.1.0` | GitHub Release pack tarballs + `packs/catalog.json` sync to `main` |
+| Tag | Ships |
+|-----|-------|
+| `v0.1.0` | crates.io + GitHub binaries (Linux/macOS) |
+| `packs-v1.0.0` | Pack tarballs + `catalog.json` sync to `main` |
 
-`v*` tag must match `version` in `Cargo.toml` (e.g. tag `v0.1.0` → `version = "0.1.0"`).
-
-**One-time:** add repo secret `CARGO_REGISTRY_TOKEN` ([crates.io token](https://crates.io/settings/tokens)) for `v*` publishes.
+Tag must match `Cargo.toml` version for `v*` releases. Set repo secret `CARGO_REGISTRY_TOKEN` for automated crates.io publish.
 
 ```bash
-# App + crates.io (bump Cargo.toml version first)
 git tag v0.1.0 && git push origin v0.1.0
-
-# Dictionary packs (after updating packs/)
 git tag packs-v1.1.0 && git push origin packs-v1.1.0
 ```
+
+</details>
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
 
-Dictionary data carries its own licenses (see each pack's `manifest.json`):
+Dictionary data has separate licenses (see each pack's `manifest.json`):
 
 | Pack | License |
 |------|---------|
