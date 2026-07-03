@@ -78,7 +78,14 @@ dictionary-tui pack list
 dictionary-tui pack install --all
 ```
 
-Downloads from GitHub Releases (`packs/catalog.json`). See `README.md`.
+Downloads from GitHub Releases (`packs/catalog.json`). For **private** repositories, set a GitHub token:
+
+```bash
+export GITHUB_TOKEN="$(gh auth token)"   # or GH_TOKEN
+dictionary-tui pack install --all
+```
+
+Public repos do not need a token. See `README.md`.
 
 ### Bundled packs (development)
 

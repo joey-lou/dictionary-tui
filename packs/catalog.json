@@ -6,22 +6,22 @@
       "id": "webster1913-en",
       "name": "Webster's 1913",
       "url": "https://github.com/joey-lou/dictionary-tui/releases/download/packs-v1.0.0/webster1913-en.tar.gz",
-      "sha256": "3260e9ee4e8ad179f8c8ed534ab8be2e8254a508d911c3e1e18e74ae9f6faac6",
-      "size": 6788197
+      "sha256": "88608f91d1d00ea142a69aa20947939846b340d14a4ee4733db5a5883b026a4e",
+      "size": 6780889
     },
     {
       "id": "xinhua-zh-zh",
       "name": "新华字典 Xinhua (中中)",
       "url": "https://github.com/joey-lou/dictionary-tui/releases/download/packs-v1.0.0/xinhua-zh-zh.tar.gz",
-      "sha256": "c50faa328e2da15aaca74b1737bd2ca99e3fff0aacd2d5d8441c52f6a8d3b6b6",
-      "size": 12855129
+      "sha256": "00dc1791b3209f084c18b3ac04ed62413d14630062b774ea6733911c28f58725",
+      "size": 12931218
     },
     {
       "id": "cc-cedict",
       "name": "CC-CEDICT (中英)",
       "url": "https://github.com/joey-lou/dictionary-tui/releases/download/packs-v1.0.0/cc-cedict.tar.gz",
-      "sha256": "e37122ae3f4e249e354b76226a0f45089037f974b8b8f4f25eebbe8428f812a9",
-      "size": 3584844
+      "sha256": "456ee87c7814e8fc9afe37f99d4c56dc3b87ffe6e48e5b876a1f993eeb9d6492",
+      "size": 3582989
     }
   ]
 }

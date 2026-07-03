@@ -55,6 +55,15 @@ dictionary-tui pack update                  # re-download all packs
 
 Pack tarballs are hosted on [GitHub Releases](https://github.com/joey-lou/dictionary-tui/releases) (`packs-v*` tags). The catalog is `packs/catalog.json`.
 
+**Private repository:** release downloads require authentication:
+
+```bash
+export GITHUB_TOKEN="$(gh auth token)"
+dictionary-tui pack install --all
+```
+
+Make the repo public (or host packs elsewhere) for token-free installs.
+
 ### Rebuild from source data (ETL)
 
 ```bash
