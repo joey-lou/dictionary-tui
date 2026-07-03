@@ -33,8 +33,6 @@ Installed packs live in:
 | macOS | `~/Library/Application Support/dictionary-tui/packs/` |
 | Linux | `~/.config/dictionary-tui/packs/` |
 
-### Commands
-
 ```bash
 dictionary-tui pack list                    # available + installed
 dictionary-tui pack install --all             # download from GitHub Releases
@@ -67,10 +65,18 @@ Releases are tagged `packs-v*` on [GitHub Releases](https://github.com/joey-lou/
 
 ## Development
 
-See [DEVELOPMENT.md](DEVELOPMENT.md). Rebuild packs with the Python ETL under `py/` — see [py/README.md](py/README.md).
+**Check:** `cargo fmt && cargo clippy -- -D warnings && cargo test` (CI runs the same on push/PR).
+
+**Optional:** `pre-commit install` — hooks for fmt, clippy, tests, and `ruff check py/`.
+
+**Rebuild packs:** `python3 py/ingest_webster1913.py` (and `ingest_xinhua.py`, `ingest_cedict.py`). Details in [py/README.md](py/README.md).
+
+**Ship a pack release:**
 
 ```bash
-cargo fmt && cargo clippy -- -D warnings && cargo test
+./scripts/build-pack-release.sh packs-v1.0.0
+git add packs/catalog.json && git commit -m "Update pack catalog for packs-v1.0.0"
+git tag packs-v1.0.0 && git push && git push --tags
 ```
 
 ## License
