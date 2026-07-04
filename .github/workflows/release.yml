@@ -195,5 +195,20 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Require crates.io token
+        run: |
+          if [ -z "${{ secrets.CARGO_REGISTRY_TOKEN }}" ]; then
+            echo "CARGO_REGISTRY_TOKEN secret is not configured"
+            exit 1
+          fi
+
+      - name: Refuse if version already on crates.io
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if curl -sf "https://crates.io/api/v1/crates/dictionary-tui/${version}" >/dev/null; then
+            echo "Version ${version} is already on crates.io"
+            exit 1
+          fi
+
       - name: Publish to crates.io
         run: cargo publish --token "${{ secrets.CARGO_REGISTRY_TOKEN }}"

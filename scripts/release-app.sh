@@ -7,17 +7,21 @@
 #   ./scripts/release-app.sh major
 #   ./scripts/release-app.sh 0.2.0
 #   ./scripts/release-app.sh patch --dry-run
+#   ./scripts/release-app.sh patch --wait   # watch Release workflow after push
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CARGO_TOML="$ROOT/Cargo.toml"
+CARGO_LOCK="$ROOT/Cargo.lock"
 DRY_RUN=false
+WAIT_WORKFLOW=false
 BUMP_KIND=""
 
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=true ;;
+    --wait) WAIT_WORKFLOW=true ;;
     patch|minor|major) BUMP_KIND="$arg" ;;
     *)
       if [[ -z "$BUMP_KIND" ]]; then
@@ -31,12 +35,16 @@ for arg in "$@"; do
 done
 
 if [[ -z "$BUMP_KIND" ]]; then
-  echo "Usage: release-app.sh {patch|minor|major|X.Y.Z} [--dry-run]" >&2
+  echo "Usage: release-app.sh {patch|minor|major|X.Y.Z} [--dry-run] [--wait]" >&2
   exit 1
 fi
 
+# shellcheck source=scripts/release-preflight.sh
+source "$ROOT/scripts/release-preflight.sh"
+
 START_SHA=""
-BACKUP=""
+BACKUP_TOML=""
+BACKUP_LOCK=""
 TAG=""
 STATE="none"
 
@@ -58,7 +66,8 @@ rollback() {
       git reset --hard "$START_SHA"
       ;;
     bumped)
-      cp "$BACKUP" "$CARGO_TOML"
+      cp "$BACKUP_TOML" "$CARGO_TOML"
+      cp "$BACKUP_LOCK" "$CARGO_LOCK"
       ;;
   esac
   return "$code"
@@ -113,63 +122,33 @@ bump_version() {
   echo "${major}.${minor}.${patch}${suffix}"
 }
 
-preflight() {
-  if [[ "$(git branch --show-current)" != "main" ]]; then
-    echo "Must be on main (current: $(git branch --show-current))" >&2
-    exit 1
-  fi
-
-  if [[ -n "$(git status --porcelain)" ]]; then
-    echo "Working tree must be clean before releasing" >&2
-    git status --short >&2
-    exit 1
-  fi
-
-  git fetch origin main
-  local local_sha remote_sha
-  local_sha="$(git rev-parse HEAD)"
-  remote_sha="$(git rev-parse origin/main)"
-  if [[ "$local_sha" != "$remote_sha" ]]; then
-    echo "main must match origin/main before releasing" >&2
-    echo "  HEAD:   $local_sha" >&2
-    echo "  origin: $remote_sha" >&2
-    exit 1
-  fi
-
-  if ! command -v cargo >/dev/null 2>&1; then
-    echo "cargo not found in PATH" >&2
-    exit 1
-  fi
-
-  echo "Running preflight checks…"
-  (cd "$ROOT" && cargo fmt -- --check)
-  (cd "$ROOT" && cargo clippy -- -D warnings)
-  (cd "$ROOT" && cargo test)
-}
-
 main() {
   cd "$ROOT"
   START_SHA="$(git rev-parse HEAD)"
-  BACKUP="$(mktemp)"
-  cp "$CARGO_TOML" "$BACKUP"
+  BACKUP_TOML="$(mktemp)"
+  BACKUP_LOCK="$(mktemp)"
+  cp "$CARGO_TOML" "$BACKUP_TOML"
+  cp "$CARGO_LOCK" "$BACKUP_LOCK"
 
-  preflight
+  echo "Preflight…"
+  release_require_main_clean_synced
+  release_require_rust_toolchain
+  release_require_ci_green "$RELEASE_SHA"
 
   local current new_version
   current="$(read_version)"
   new_version="$(bump_version "$current" "$BUMP_KIND")"
   TAG="v${new_version}"
 
-  if git rev-parse "$TAG" >/dev/null 2>&1; then
-    echo "Tag $TAG already exists" >&2
-    exit 1
-  fi
+  release_require_tag_free "$TAG"
+  release_require_crates_io_version_free "$new_version"
+  release_run_cargo_checks
 
   echo ""
   echo "Release plan:"
   echo "  Cargo.toml: $current → $new_version"
   echo "  Tag:        $TAG"
-  echo "  Commit:     $START_SHA → new bump commit on main"
+  echo "  Commit:     ${START_SHA:0:7} → bump commit on main"
 
   if [[ "$DRY_RUN" == true ]]; then
     echo ""
@@ -181,19 +160,20 @@ main() {
   set_version "$new_version"
   STATE="bumped"
 
-  (cd "$ROOT" && cargo package --quiet)
-  local size
-  size="$(stat -c%s "$ROOT"/target/package/dictionary-tui-*.crate)"
-  if [[ "$size" -ge 10485760 ]]; then
-    echo "Crate too large for crates.io: $size bytes" >&2
-    exit 1
-  fi
+  release_verify_crate_package "$new_version"
 
-  git add "$CARGO_TOML"
+  git add "$CARGO_TOML" "$CARGO_LOCK"
   git commit -m "Bump version to ${new_version}."
   STATE="committed"
 
-  git tag "$TAG"
+  local committed_version
+  committed_version="$(read_version)"
+  if [[ "$committed_version" != "$new_version" ]]; then
+    echo "Internal error: committed version ${committed_version} != ${new_version}" >&2
+    exit 1
+  fi
+
+  git tag -a "$TAG" -m "Release ${new_version}"
   STATE="tagged"
 
   git push origin main
@@ -211,6 +191,11 @@ main() {
   trap - EXIT
   echo ""
   echo "Released $TAG — workflow will build binaries and publish to crates.io."
+  echo "https://github.com/${REPO}/actions/workflows/release.yml"
+
+  if [[ "$WAIT_WORKFLOW" == true ]]; then
+    release_wait_for_workflow "$TAG"
+  fi
 }
 
 main
