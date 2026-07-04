@@ -101,19 +101,39 @@ Optional: `pre-commit install` (fmt, clippy, tests, `ruff check py/`).
 <details>
 <summary>Releasing (maintainers)</summary>
 
-Tag the **latest `main` commit** — [`.github/workflows/release.yml`](.github/workflows/release.yml) routes by prefix:
+Tag the **latest `main` commit** — [`.github/workflows/release.yml`](.github/workflows/release.yml) routes by prefix. The release workflow re-runs CI (fmt, clippy, tests) before shipping.
 
 | Tag | Ships |
 |-----|-------|
 | `v0.1.0` | crates.io + GitHub binaries (Linux/macOS) |
 | `packs-v1.0.0` | Pack tarballs + `catalog.json` sync to `main` |
 
-Tag must match `Cargo.toml` version for `v*` releases. Set repo secret `CARGO_REGISTRY_TOKEN` for automated crates.io publish.
+**Pre-flight**
+
+1. Merge to `main` and ensure CI is green (`release-app.sh` also runs fmt, clippy, and tests locally).
+2. Pack release: re-run ingest scripts if pack data changed (`py/ingest_*.py`).
+3. Optional dry-run: `./scripts/release-app.sh patch --dry-run` or `./scripts/build-pack-release.sh packs-vX.Y.Z`.
+
+**App release** — from a clean `main` synced with `origin/main`:
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0
+./scripts/release-app.sh patch          # 0.1.1 → 0.1.2
+./scripts/release-app.sh minor          # 0.1.1 → 0.2.0
+./scripts/release-app.sh 0.2.0          # explicit version
+./scripts/release-app.sh patch --dry-run
+```
+
+The script runs fmt/clippy/tests, bumps `Cargo.toml`, commits, tags `v*`, and pushes. It rolls back local commit/tag changes if a step fails before push completes. Tag and `Cargo.toml` always match on the release commit — no bot follow-up commit.
+
+**Pack release** — tag pack content on `main` (no `Cargo.toml` change):
+
+```bash
 git tag packs-v1.1.0 && git push origin packs-v1.1.0
 ```
+
+Set repo secret `CARGO_REGISTRY_TOKEN` for automated crates.io publish. crates.io publish runs only after binaries are built and the GitHub Release is created.
+
+**Pack catalog note:** a `packs-v*` tag points at the pack *content* on `main`. The workflow then pushes a follow-up commit updating `packs/catalog.json` (checksums and URLs). Clients fetch the live catalog from `main`; the tag itself does not include that commit.
 
 </details>
 

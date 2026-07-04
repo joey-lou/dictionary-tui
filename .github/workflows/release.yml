@@ -13,6 +13,9 @@ on:
 permissions:
   contents: write
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -43,14 +46,56 @@ jobs:
         if: startsWith(github.ref_name, 'v')
         run: |
           tag_version="${GITHUB_REF_NAME#v}"
+          if [[ ! "$tag_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "App release tags must be semver: vX.Y.Z (got: ${{ github.ref_name }})"
+            exit 1
+          fi
           crate_version=$(grep -m1 '^version' Cargo.toml | sed -E 's/version *= *"([^"]+)".*/\1/')
           if [ "$tag_version" != "$crate_version" ]; then
             echo "Tag ${{ github.ref_name }} must match Cargo.toml version ($crate_version)"
             exit 1
           fi
 
-  release-packs:
+  ci:
     needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Run tests
+        run: cargo test
+
+      - name: Verify publishable crate size
+        if: startsWith(github.ref_name, 'v')
+        run: |
+          cargo package --quiet
+          size=$(stat -c%s target/package/dictionary-tui-*.crate)
+          echo "Crate size: $size bytes"
+          test "$size" -lt 10485760
+
+  release-packs:
+    needs: [validate, ci]
     if: startsWith(github.ref_name, 'packs-v')
     runs-on: ubuntu-latest
     steps:
@@ -89,7 +134,7 @@ jobs:
           git push origin main
 
   build-binaries:
-    needs: validate
+    needs: [validate, ci]
     if: startsWith(github.ref_name, 'v')
     name: build (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
@@ -142,7 +187,7 @@ jobs:
           files: dist/*
 
   publish-crate:
-    needs: validate
+    needs: release-app
     if: startsWith(github.ref_name, 'v')
     runs-on: ubuntu-latest
     steps:

@@ -21,16 +21,32 @@ PACKS_DIR="$ROOT/packs"
 
 mkdir -p "$DIST"
 
-PACK_IDS=(webster1913-en xinhua-zh-zh cc-cedict)
-PACK_NAMES=(
-  "Webster's 1913"
-  "新华字典 Xinhua (中中)"
-  "CC-CEDICT (中英)"
-)
+manifest_field() {
+  python3 -c "import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])" "$1" "$2"
+}
+
+PACK_IDS=()
+for dir in "$PACKS_DIR"/*/; do
+  [[ -f "${dir}manifest.json" ]] || continue
+  PACK_IDS+=("$(basename "$dir")")
+done
+
+if [[ ${#PACK_IDS[@]} -eq 0 ]]; then
+  echo "No packs with manifest.json found under $PACKS_DIR" >&2
+  exit 1
+fi
+
+mapfile -t PACK_IDS < <(printf '%s\n' "${PACK_IDS[@]}" | sort)
 
 entries=()
-for i in "${!PACK_IDS[@]}"; do
-  id="${PACK_IDS[$i]}"
+for id in "${PACK_IDS[@]}"; do
+  manifest="$PACKS_DIR/$id/manifest.json"
+  manifest_id="$(manifest_field "$manifest" id)"
+  if [[ "$manifest_id" != "$id" ]]; then
+    echo "manifest id mismatch in $manifest (expected $id, got $manifest_id)" >&2
+    exit 1
+  fi
+
   archive="$DIST/${id}.tar.gz"
   echo "Building $archive …"
   if tar --version 2>/dev/null | grep -qi gnu; then
@@ -42,7 +58,7 @@ for i in "${!PACK_IDS[@]}"; do
   sha256="$(shasum -a 256 "$archive" | awk '{print $1}')"
   size="$(stat -f%z "$archive" 2>/dev/null || stat -c%s "$archive")"
   url="https://github.com/${REPO}/releases/download/${RELEASE_TAG}/${id}.tar.gz"
-  name="${PACK_NAMES[$i]}"
+  name="$(manifest_field "$manifest" name)"
   entries+=("    {
       \"id\": \"${id}\",
       \"name\": \"${name}\",
