@@ -181,7 +181,7 @@ main() {
   set_version "$new_version"
   STATE="bumped"
 
-  (cd "$ROOT" && cargo package --quiet)
+  (cd "$ROOT" && cargo package --allow-dirty --quiet)
   local size
   size="$(stat -c%s "$ROOT"/target/package/dictionary-tui-*.crate)"
   if [[ "$size" -ge 10485760 ]]; then
@@ -189,7 +189,7 @@ main() {
     exit 1
   fi
 
-  git add "$CARGO_TOML"
+  git add "$CARGO_TOML" Cargo.lock
   git commit -m "Bump version to ${new_version}."
   STATE="committed"
 
