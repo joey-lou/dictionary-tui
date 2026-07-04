@@ -9,6 +9,10 @@
 Terminal dictionary browser — paginated word lists, prefix search, and expandable entries.  
 English ([Webster's 1913](https://www.gutenberg.org/ebooks/29765)), Chinese–Chinese ([Xinhua](https://github.com/pwxcoo/chinese-xinhua)), Chinese–English ([CC-CEDICT](https://cc-cedict.org/)).
 
+<p align="center">
+  <img src="assets/demo.gif" alt="dictionary-tui demo — CC-CEDICT Chinese–English pinyin search and detail view" width="860">
+</p>
+
 ## Install & run
 
 **Requires:** Rust ≥ 1.88 and a real terminal (TTY).
@@ -87,6 +91,8 @@ cargo fmt && cargo clippy -- -D warnings && cargo test
 ```
 
 Optional: `pre-commit install` (fmt, clippy, tests, `ruff check py/`).
+
+**Demo GIF:** `brew install vhs && ./scripts/record-demo.sh` (from Terminal.app; edit `scripts/demo.tape`).
 
 **Rebuild pack data** — `python3 py/ingest_webster1913.py` (also `ingest_xinhua.py`, `ingest_cedict.py`). See [py/README.md](py/README.md).
 
