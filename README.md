@@ -64,6 +64,8 @@ dictionary-tui pack list
 dictionary-tui pack install --all
 dictionary-tui pack install webster1913-en cc-cedict
 dictionary-tui pack update
+dictionary-tui pack uninstall cc-cedict
+dictionary-tui pack uninstall --all
 ```
 
 Installed to `~/Library/Application Support/dictionary-tui/packs/` (macOS) or `~/.config/dictionary-tui/packs/` (Linux).
