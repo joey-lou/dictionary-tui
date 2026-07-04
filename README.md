@@ -101,14 +101,23 @@ Optional: `pre-commit install` (fmt, clippy, tests, `ruff check py/`).
 <details>
 <summary>Releasing (maintainers)</summary>
 
-Tag the **latest `main` commit** — [`.github/workflows/release.yml`](.github/workflows/release.yml) routes by prefix:
+Tag the **latest `main` commit** — [`.github/workflows/release.yml`](.github/workflows/release.yml) routes by prefix. The release workflow re-runs CI (fmt, clippy, tests) before shipping.
 
 | Tag | Ships |
 |-----|-------|
 | `v0.1.0` | crates.io + GitHub binaries (Linux/macOS) |
 | `packs-v1.0.0` | Pack tarballs + `catalog.json` sync to `main` |
 
-Tag must match `Cargo.toml` version for `v*` releases. Set repo secret `CARGO_REGISTRY_TOKEN` for automated crates.io publish.
+**Pre-flight**
+
+1. Ensure CI is green on `main`.
+2. App release: bump `version` in `Cargo.toml` to match the tag.
+3. Pack release: re-run ingest scripts if pack data changed (`py/ingest_*.py`).
+4. Optional dry-run: `./scripts/build-pack-release.sh packs-vX.Y.Z`.
+
+Tag must match `Cargo.toml` version for `v*` releases. Set repo secret `CARGO_REGISTRY_TOKEN` for automated crates.io publish. crates.io publish runs only after binaries are built and the GitHub Release is created.
+
+**Pack catalog note:** a `packs-v*` tag points at the pack *content* on `main`. The workflow then pushes a follow-up commit updating `packs/catalog.json` (checksums and URLs). Clients fetch the live catalog from `main`; the tag itself does not include that commit.
 
 ```bash
 git tag v0.1.0 && git push origin v0.1.0
