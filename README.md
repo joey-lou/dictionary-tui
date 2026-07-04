@@ -111,16 +111,17 @@ Tag the **latest `main` commit** — [`.github/workflows/release.yml`](.github/w
 **Pre-flight**
 
 1. Ensure CI is green on `main`.
-2. App release: bump `version` in `Cargo.toml` to match the tag.
-3. Pack release: re-run ingest scripts if pack data changed (`py/ingest_*.py`).
-4. Optional dry-run: `./scripts/build-pack-release.sh packs-vX.Y.Z`.
+2. Pack release: re-run ingest scripts if pack data changed (`py/ingest_*.py`).
+3. Optional dry-run: `./scripts/build-pack-release.sh packs-vX.Y.Z`.
 
-Tag must match `Cargo.toml` version for `v*` releases. Set repo secret `CARGO_REGISTRY_TOKEN` for automated crates.io publish. crates.io publish runs only after binaries are built and the GitHub Release is created.
+For `v*` releases, the **git tag is the version source of truth**. CI sets `Cargo.toml` from the tag before building/publishing, then syncs the bump back to `main` (same pattern as pack `catalog.json`). You do not need to edit `Cargo.toml` by hand.
+
+Set repo secret `CARGO_REGISTRY_TOKEN` for automated crates.io publish. crates.io publish runs only after binaries are built and the GitHub Release is created.
 
 **Pack catalog note:** a `packs-v*` tag points at the pack *content* on `main`. The workflow then pushes a follow-up commit updating `packs/catalog.json` (checksums and URLs). Clients fetch the live catalog from `main`; the tag itself does not include that commit.
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0
+./scripts/release-app.sh 0.1.2          # app: tag v0.1.2 on main tip
 git tag packs-v1.1.0 && git push origin packs-v1.1.0
 ```
 
