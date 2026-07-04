@@ -1,6 +1,8 @@
-//! CLI entry points (`pack install`, `pack list`, etc.).
+//! CLI entry points (`pack install`, `pack uninstall`, `pack list`, etc.).
 
-use crate::pack_install::{install_packs, is_pack_installed, load_catalog, update_packs};
+use crate::pack_install::{
+    install_packs, is_pack_installed, load_catalog, uninstall_packs, update_packs,
+};
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 
@@ -46,6 +48,16 @@ pub enum PackCommand {
     },
     /// Re-download and install all catalog packs.
     Update,
+    /// Remove installed packs from the config directory.
+    Uninstall {
+        /// Pack ids to remove (e.g. webster1913-en cc-cedict).
+        #[arg(value_name = "PACK_ID")]
+        packs: Vec<String>,
+
+        /// Remove every installed catalog pack.
+        #[arg(long)]
+        all: bool,
+    },
 }
 
 /// Result of parsing CLI arguments.
@@ -86,6 +98,7 @@ where
         PackCommand::List => run_pack_list(),
         PackCommand::Install { packs, all, from } => run_pack_install(&packs, all, from.as_deref()),
         PackCommand::Update => run_pack_update(),
+        PackCommand::Uninstall { packs, all } => run_pack_uninstall(&packs, all),
     };
     CliResult::Exit(code)
 }
@@ -134,6 +147,16 @@ fn run_pack_update() -> u8 {
         Ok(()) => 0,
         Err(e) => {
             eprintln!("dictionary-tui pack update error: {e}");
+            1
+        }
+    }
+}
+
+fn run_pack_uninstall(packs: &[String], all: bool) -> u8 {
+    match uninstall_packs(packs, all) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("dictionary-tui pack uninstall error: {e}");
             1
         }
     }

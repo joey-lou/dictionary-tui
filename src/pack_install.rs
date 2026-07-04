@@ -53,8 +53,7 @@ pub fn is_pack_installed(id: &str) -> bool {
     let Some(root) = packs_root() else {
         return false;
     };
-    let pack_dir = root.join(id);
-    load_manifest(&pack_dir).is_ok()
+    is_pack_installed_at(&root, id)
 }
 
 /// Install packs by id from the catalog (`all` installs every catalog entry).
@@ -107,6 +106,67 @@ pub fn install_packs(
 /// Re-install all catalog packs (same as `install --all`).
 pub fn update_packs() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     install_packs(&[], true, None)
+}
+
+/// Remove installed packs from the config directory (`all` removes every catalog pack that is installed).
+pub fn uninstall_packs(
+    ids: &[String],
+    all: bool,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let dest = packs_root().ok_or("could not resolve config packs directory")?;
+    let catalog = load_catalog()?;
+    uninstall_packs_at(&dest, &catalog, ids, all)
+}
+
+fn uninstall_packs_at(
+    dest: &Path,
+    catalog: &PackCatalog,
+    ids: &[String],
+    all: bool,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let to_remove: Vec<&PackRelease> = if all {
+        if ids.is_empty() {
+            catalog
+                .packs
+                .iter()
+                .filter(|p| is_pack_installed_at(dest, &p.id))
+                .collect()
+        } else {
+            return Err("pass pack ids or --all, not both".into());
+        }
+    } else {
+        if ids.is_empty() {
+            return Err("specify pack ids (e.g. webster1913-en) or pass --all".into());
+        }
+        let mut selected = Vec::with_capacity(ids.len());
+        for id in ids {
+            let pack = catalog.packs.iter().find(|p| p.id == *id).ok_or_else(|| {
+                format!("unknown pack id \"{id}\" (see: dictionary-tui pack list)")
+            })?;
+            if !is_pack_installed_at(dest, id) {
+                return Err(format!("pack \"{id}\" is not installed").into());
+            }
+            selected.push(pack);
+        }
+        selected
+    };
+
+    if to_remove.is_empty() {
+        println!("No installed packs to remove.");
+        return Ok(());
+    }
+
+    for pack in to_remove {
+        let pack_dir = dest.join(&pack.id);
+        fs::remove_dir_all(&pack_dir)?;
+        println!("Removed \"{}\" ({})", pack.name, pack.id);
+    }
+
+    Ok(())
+}
+
+fn is_pack_installed_at(dest: &Path, id: &str) -> bool {
+    load_manifest(&dest.join(id)).is_ok()
 }
 
 fn github_token() -> Option<String> {
@@ -340,6 +400,43 @@ mod tests {
 
         extract_pack(&archive, &dest).expect("extract");
         assert!(dest.join("cc-cedict/manifest.json").exists());
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn uninstall_removes_installed_pack_dir() {
+        let catalog: PackCatalog = serde_json::from_str(EMBEDDED_CATALOG).unwrap();
+        let pack = catalog.packs.iter().find(|p| p.id == "cc-cedict").unwrap();
+        let tmp = std::env::temp_dir().join(format!("dict-tui-uninstall-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+        let pack_dir = tmp.join(&pack.id);
+        fs::create_dir_all(&pack_dir).unwrap();
+        fs::write(
+            pack_dir.join("manifest.json"),
+            r#"{"id":"cc-cedict","name":"CC-CEDICT","language":"zh","sort":"pinyin","entry_count":1,"data_file":"entries.jsonl"}"#,
+        )
+        .unwrap();
+
+        uninstall_packs_at(&tmp, &catalog, &[pack.id.clone()], false).unwrap();
+        assert!(!pack_dir.exists());
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn uninstall_errors_when_not_installed() {
+        let catalog: PackCatalog = serde_json::from_str(EMBEDDED_CATALOG).unwrap();
+        let tmp =
+            std::env::temp_dir().join(format!("dict-tui-uninstall-miss-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+
+        let err = uninstall_packs_at(&tmp, &catalog, &["cc-cedict".to_string()], false)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("not installed"));
 
         let _ = fs::remove_dir_all(&tmp);
     }

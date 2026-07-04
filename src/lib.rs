@@ -10,7 +10,9 @@ pub mod schema;
 
 pub use cli::{run_from_args, CliResult};
 pub use pack::{discover_packs, load_manifest, packs_root, PackError};
-pub use pack_install::{install_packs, is_pack_installed, load_catalog, PackCatalog, PackRelease};
+pub use pack_install::{
+    install_packs, is_pack_installed, load_catalog, uninstall_packs, PackCatalog, PackRelease,
+};
 pub use provider::{format_pronunciation_display, LocalProvider, Provider};
 pub use schema::{DetailEntry, ListEntry, PackManifest, PhraseItem};
 
