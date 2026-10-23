@@ -4,7 +4,10 @@ use crate::config::{load_config, save_config, AppConfig};
 use crate::pack::discover_packs;
 use crate::provider::{format_pronunciation_display, LocalProvider, Provider};
 use crate::schema::{ListEntry, PackManifest};
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use crossterm::event::{
+    self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, MouseButton,
+    MouseEvent, MouseEventKind,
+};
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
@@ -18,7 +21,7 @@ use ratatui::Terminal;
 use std::error::Error;
 use std::io::{self, Stdout};
 use std::path::PathBuf;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 type AppResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
@@ -28,6 +31,7 @@ const PRON_COL_EN: usize = 12;
 const PRON_COL_ZH: usize = 18;
 const POS_COL: usize = 6;
 const INDICATOR_COL: usize = 2;
+const DOUBLE_CLICK: Duration = Duration::from_millis(400);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ViewMode {
@@ -57,6 +61,8 @@ struct AppState {
     increment_input: String,
     search_buffer: String,
     search_active: bool,
+    detail_scroll: u16,
+    last_row_click: Option<(usize, Instant)>,
 }
 
 struct PackPickerState {
@@ -116,6 +122,8 @@ impl AppState {
             increment_input: String::new(),
             search_buffer: String::new(),
             search_active: false,
+            detail_scroll: 0,
+            last_row_click: None,
         };
         state.reload_page()?;
         Ok(state)
@@ -320,6 +328,11 @@ impl AppState {
         }
         Ok(())
     }
+
+    const fn open_detail(&mut self) {
+        self.detail_scroll = 0;
+        self.screen = Screen::Detail;
+    }
 }
 
 struct TerminalGuard {
@@ -331,12 +344,14 @@ impl TerminalGuard {
         enable_raw_mode()?;
         let mut stdout = io::stdout();
         stdout.execute(EnterAlternateScreen)?;
+        stdout.execute(EnableMouseCapture)?;
         Ok(Self { stdout })
     }
 }
 
 impl Drop for TerminalGuard {
     fn drop(&mut self) {
+        let _ = self.stdout.execute(DisableMouseCapture);
         let _ = disable_raw_mode();
         let _ = self.stdout.execute(LeaveAlternateScreen);
     }
@@ -383,13 +398,22 @@ pub fn run() -> AppResult<()> {
             continue;
         }
         let evt = event::read()?;
-        if let Event::Key(key_event) = evt {
-            if key_event.kind != KeyEventKind::Press {
-                continue;
+        match evt {
+            Event::Key(key_event) => {
+                if key_event.kind != KeyEventKind::Press {
+                    continue;
+                }
+                if handle_key(&mut app, key_event.code)? {
+                    break;
+                }
             }
-            if handle_key(&mut app, key_event.code)? {
-                break;
+            Event::Mouse(mouse) => {
+                let Ok(size) = terminal.size() else {
+                    continue;
+                };
+                handle_mouse(&mut app, term_rect(size), mouse)?;
             }
+            _ => {}
         }
     }
 
@@ -401,6 +425,7 @@ fn choose_pack(
     packs: Vec<(PathBuf, PackManifest)>,
 ) -> AppResult<Option<(PathBuf, PackManifest)>> {
     let mut picker = PackPickerState::new(packs);
+    let mut last_click: Option<(usize, Instant)> = None;
 
     loop {
         terminal.draw(|frame| render_pack_picker(frame, &picker))?;
@@ -408,18 +433,27 @@ fn choose_pack(
         if !event::poll(Duration::from_millis(120))? {
             continue;
         }
-        let evt = event::read()?;
-        let Event::Key(key_event) = evt else {
-            continue;
-        };
-        if key_event.kind != KeyEventKind::Press {
-            continue;
-        }
-        match key_event.code {
-            KeyCode::Char('q' | 'Q') | KeyCode::Esc => return Ok(None),
-            KeyCode::Down | KeyCode::Char('j') => picker.move_next(),
-            KeyCode::Up | KeyCode::Char('k') => picker.move_prev(),
-            KeyCode::Enter => return Ok(picker.selected()),
+        match event::read()? {
+            Event::Key(key_event) => {
+                if key_event.kind != KeyEventKind::Press {
+                    continue;
+                }
+                match key_event.code {
+                    KeyCode::Char('q' | 'Q') | KeyCode::Esc => return Ok(None),
+                    KeyCode::Down | KeyCode::Char('j') => picker.move_next(),
+                    KeyCode::Up | KeyCode::Char('k') => picker.move_prev(),
+                    KeyCode::Enter => return Ok(picker.selected()),
+                    _ => {}
+                }
+            }
+            Event::Mouse(mouse) => {
+                let Ok(size) = terminal.size() else {
+                    continue;
+                };
+                if picker_mouse(&mut picker, term_rect(size), mouse, &mut last_click) {
+                    return Ok(picker.selected());
+                }
+            }
             _ => {}
         }
     }
@@ -427,14 +461,7 @@ fn choose_pack(
 
 fn render_pack_picker(frame: &mut ratatui::Frame<'_>, picker: &PackPickerState) {
     let area = frame.area();
-    let [header_area, body_area, footer_area] = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(2),
-            Constraint::Min(5),
-            Constraint::Length(2),
-        ])
-        .areas(area);
+    let [header_area, body_area, footer_area] = chrome_areas(area, 5);
 
     let title = format!("Select dictionary pack ({} found)", picker.packs.len());
     let header = Paragraph::new(title).block(Block::default().borders(Borders::ALL));
@@ -466,14 +493,7 @@ fn render_pack_picker(frame: &mut ratatui::Frame<'_>, picker: &PackPickerState) 
 
 fn render(frame: &mut ratatui::Frame<'_>, app: &AppState) {
     let area = frame.area();
-    let [header_area, body_area, footer_area] = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(2),
-            Constraint::Min(3),
-            Constraint::Length(2),
-        ])
-        .areas(area);
+    let [header_area, body_area, footer_area] = chrome_areas(area, 3);
 
     let hints = match app.screen {
         Screen::List => {
@@ -542,27 +562,37 @@ fn truncate_str(s: &str, max_chars: usize) -> String {
     }
 }
 
-/// Format a list row: indicator, headword, POS, pronunciation, definition.
+/// Xinhua part-of-speech tags are sparse and often wrong, so that column stays hidden.
+fn shows_part_of_speech(manifest: &PackManifest) -> bool {
+    manifest.id != "xinhua-zh-zh"
+}
+
+/// Format a list row: indicator, headword, optional POS, pronunciation, definition.
 fn format_list_row(
     indicator: &str,
     entry: &ListEntry,
     def_max: usize,
     language: &str,
     pron_col: usize,
+    show_pos: bool,
 ) -> String {
     let head = truncate_str(&entry.headword, HEADWORD_COL.saturating_sub(1));
-    let pos = truncate_str(
-        entry.part_of_speech.as_deref().unwrap_or(""),
-        POS_COL.saturating_sub(1),
-    );
     let pron = truncate_str(
         &format_pronunciation_display(language, entry.pronunciation.as_deref()),
         pron_col.saturating_sub(1),
     );
     let def = truncate_str(entry.short_definition.as_deref().unwrap_or(""), def_max);
-    format!(
-        "{indicator:<INDICATOR_COL$}{head:<HEADWORD_COL$} {pos:<POS_COL$} {pron:<pron_col$} {def}"
-    )
+    if show_pos {
+        let pos = truncate_str(
+            entry.part_of_speech.as_deref().unwrap_or(""),
+            POS_COL.saturating_sub(1),
+        );
+        format!(
+            "{indicator:<INDICATOR_COL$}{head:<HEADWORD_COL$} {pos:<POS_COL$} {pron:<pron_col$} {def}"
+        )
+    } else {
+        format!("{indicator:<INDICATOR_COL$}{head:<HEADWORD_COL$} {pron:<pron_col$} {def}")
+    }
 }
 
 fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app: &AppState) {
@@ -589,22 +619,31 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
         .areas(inner);
 
     let language = app.provider.metadata().language.as_str();
+    let show_pos = shows_part_of_speech(app.provider.metadata());
     let pron_col = if language == "zh" {
         PRON_COL_ZH
     } else {
         PRON_COL_EN
     };
 
-    let fixed_cols = INDICATOR_COL + HEADWORD_COL + 1 + POS_COL + 1 + pron_col + 1;
+    let pos_cols = if show_pos { POS_COL + 1 } else { 0 };
+    let fixed_cols = INDICATOR_COL + HEADWORD_COL + 1 + pos_cols + pron_col + 1;
     let def_max = inner
         .width
         .saturating_sub(u16::try_from(fixed_cols).unwrap_or(40))
         .max(8) as usize;
 
-    let header_line = format!(
-        "{:<INDICATOR_COL$}{:<HEADWORD_COL$} {:<POS_COL$} {:<pron_col$} {}",
-        "", "Word", "POS", "Pron.", "Definition"
-    );
+    let header_line = if show_pos {
+        format!(
+            "{:<INDICATOR_COL$}{:<HEADWORD_COL$} {:<POS_COL$} {:<pron_col$} {}",
+            "", "Word", "POS", "Pron.", "Definition"
+        )
+    } else {
+        format!(
+            "{:<INDICATOR_COL$}{:<HEADWORD_COL$} {:<pron_col$} {}",
+            "", "Word", "Pron.", "Definition"
+        )
+    };
     let header = Paragraph::new(header_line)
         .style(Style::default().add_modifier(Modifier::BOLD | Modifier::DIM));
     frame.render_widget(header, header_area);
@@ -645,7 +684,7 @@ fn render_list(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, app:
                 }
             };
 
-            let line = format_list_row(indicator, entry, def_max, language, pron_col);
+            let line = format_list_row(indicator, entry, def_max, language, pron_col, show_pos);
             items.push(ListItem::new(Line::from(line)));
         }
     }
@@ -682,8 +721,10 @@ fn render_detail(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, ap
     let detail = app.provider.get_detail(global_idx).ok().flatten();
     let text = if let Some(detail) = detail {
         let mut lines = vec![format!("Headword: {}", detail.headword)];
-        if let Some(pos) = &detail.part_of_speech {
-            lines.push(format!("Part of speech: {pos}"));
+        if shows_part_of_speech(app.provider.metadata()) {
+            if let Some(pos) = &detail.part_of_speech {
+                lines.push(format!("Part of speech: {pos}"));
+            }
         }
         if let Some(pron) = detail.pronunciation {
             let pron = format_pronunciation_display(
@@ -714,7 +755,8 @@ fn render_detail(frame: &mut ratatui::Frame<'_>, area: ratatui::layout::Rect, ap
 
     let paragraph = Paragraph::new(text)
         .block(Block::default().borders(Borders::ALL).title("Detail"))
-        .wrap(Wrap { trim: false });
+        .wrap(Wrap { trim: false })
+        .scroll((app.detail_scroll, 0));
     frame.render_widget(paragraph, area);
 }
 
@@ -740,6 +782,145 @@ fn centered_rect(
         ])
         .areas::<3>(vertical);
     horizontal
+}
+
+const fn term_rect(size: ratatui::layout::Size) -> ratatui::layout::Rect {
+    ratatui::layout::Rect {
+        x: 0,
+        y: 0,
+        width: size.width,
+        height: size.height,
+    }
+}
+
+fn chrome_areas(term: ratatui::layout::Rect, body_min: u16) -> [ratatui::layout::Rect; 3] {
+    Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(2),
+            Constraint::Min(body_min),
+            Constraint::Length(2),
+        ])
+        .areas(term)
+}
+
+fn bordered_inner(area: ratatui::layout::Rect) -> ratatui::layout::Rect {
+    Block::default().borders(Borders::ALL).inner(area)
+}
+
+/// Rows of the dictionary list, below the column header and inside the border.
+fn entry_list_area(term: ratatui::layout::Rect) -> ratatui::layout::Rect {
+    let [_, body, _] = chrome_areas(term, 3);
+    let inner = bordered_inner(body);
+    ratatui::layout::Rect {
+        x: inner.x,
+        y: inner.y.saturating_add(1),
+        width: inner.width,
+        height: inner.height.saturating_sub(1),
+    }
+}
+
+fn picker_list_area(term: ratatui::layout::Rect) -> ratatui::layout::Rect {
+    let [_, body, _] = chrome_areas(term, 5);
+    bordered_inner(body)
+}
+
+fn row_at(area: ratatui::layout::Rect, column: u16, row: u16, entry_count: usize) -> Option<usize> {
+    if entry_count == 0 || area.width == 0 || area.height == 0 {
+        return None;
+    }
+    let right = area.x.saturating_add(area.width);
+    let bottom = area.y.saturating_add(area.height);
+    if column < area.x || column >= right || row < area.y || row >= bottom {
+        return None;
+    }
+    let idx = usize::from(row - area.y);
+    (idx < entry_count).then_some(idx)
+}
+
+fn is_double_click(last: Option<(usize, Instant)>, idx: usize, now: Instant) -> bool {
+    last.is_some_and(|(prev, at)| prev == idx && now.saturating_duration_since(at) < DOUBLE_CLICK)
+}
+
+fn handle_mouse(
+    app: &mut AppState,
+    area: ratatui::layout::Rect,
+    mouse: MouseEvent,
+) -> AppResult<()> {
+    match app.screen {
+        Screen::IncrementInput => Ok(()),
+        Screen::Detail => {
+            match mouse.kind {
+                MouseEventKind::ScrollDown => {
+                    app.detail_scroll = app.detail_scroll.saturating_add(1);
+                }
+                MouseEventKind::ScrollUp => {
+                    app.detail_scroll = app.detail_scroll.saturating_sub(1);
+                }
+                _ => {}
+            }
+            Ok(())
+        }
+        Screen::List => match mouse.kind {
+            MouseEventKind::ScrollDown => app.move_next_row(),
+            MouseEventKind::ScrollUp => app.move_prev_row(),
+            MouseEventKind::Down(MouseButton::Left) => {
+                let Some(idx) = row_at(
+                    entry_list_area(area),
+                    mouse.column,
+                    mouse.row,
+                    app.current_entries.len(),
+                ) else {
+                    return Ok(());
+                };
+                app.search_active = false;
+                let now = Instant::now();
+                let open = is_double_click(app.last_row_click, idx, now);
+                app.selected_idx = idx;
+                if open {
+                    app.last_row_click = None;
+                    app.open_detail();
+                } else {
+                    app.last_row_click = Some((idx, now));
+                }
+                Ok(())
+            }
+            _ => Ok(()),
+        },
+    }
+}
+
+/// Returns true when a double-click should open the selected pack.
+fn picker_mouse(
+    picker: &mut PackPickerState,
+    area: ratatui::layout::Rect,
+    mouse: MouseEvent,
+    last_click: &mut Option<(usize, Instant)>,
+) -> bool {
+    match mouse.kind {
+        MouseEventKind::ScrollDown => picker.move_next(),
+        MouseEventKind::ScrollUp => picker.move_prev(),
+        MouseEventKind::Down(MouseButton::Left) => {
+            let Some(idx) = row_at(
+                picker_list_area(area),
+                mouse.column,
+                mouse.row,
+                picker.packs.len(),
+            ) else {
+                return false;
+            };
+            let now = Instant::now();
+            let open = is_double_click(*last_click, idx, now);
+            picker.selected_idx = idx;
+            if open {
+                *last_click = None;
+                return true;
+            }
+            *last_click = Some((idx, now));
+        }
+        _ => {}
+    }
+    false
 }
 
 fn handle_key(app: &mut AppState, code: KeyCode) -> AppResult<bool> {
@@ -780,7 +961,7 @@ fn handle_key(app: &mut AppState, code: KeyCode) -> AppResult<bool> {
                     KeyCode::Right | KeyCode::Char('l') | KeyCode::PageDown => app.next_page()?,
                     KeyCode::Left | KeyCode::Char('h') | KeyCode::PageUp => app.prev_page()?,
                     KeyCode::Char(' ') => app.toggle_view_mode()?,
-                    KeyCode::Enter => app.screen = Screen::Detail,
+                    KeyCode::Enter => app.open_detail(),
                     KeyCode::Char('r' | 'R') => app.random_page()?,
                     KeyCode::Char('+' | '=') => {
                         app.cycle_increment_next();
@@ -827,4 +1008,63 @@ fn handle_key(app: &mut AppState, code: KeyCode) -> AppResult<bool> {
         },
     }
     Ok(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_entry() -> ListEntry {
+        ListEntry {
+            headword: "行".to_string(),
+            sort_key: "xíng".to_string(),
+            leading_key: None,
+            is_phrase: None,
+            pronunciation: Some("xíng".to_string()),
+            short_definition: Some("walk".to_string()),
+            part_of_speech: Some("verb".to_string()),
+        }
+    }
+
+    #[test]
+    fn xinhua_list_row_omits_pos() {
+        let row = format_list_row("  ", &sample_entry(), 20, "zh", PRON_COL_ZH, false);
+        assert!(!row.contains("verb"));
+        assert!(row.contains("xíng"));
+        assert!(row.contains("walk"));
+    }
+
+    #[test]
+    fn other_packs_list_row_keeps_pos() {
+        let row = format_list_row("  ", &sample_entry(), 20, "en", PRON_COL_EN, true);
+        assert!(row.contains("verb"));
+    }
+
+    #[test]
+    fn click_maps_to_visible_row() {
+        let term = ratatui::layout::Rect {
+            x: 0,
+            y: 0,
+            width: 80,
+            height: 24,
+        };
+        let list = entry_list_area(term);
+        assert_eq!(row_at(list, list.x, list.y, 10), Some(0));
+        assert_eq!(row_at(list, list.x, list.y + 3, 10), Some(3));
+        assert_eq!(row_at(list, list.x, list.y + 10, 10), None);
+        assert_eq!(row_at(list, 0, list.y, 10), None);
+    }
+
+    #[test]
+    fn double_click_requires_same_row_quickly() {
+        let t0 = Instant::now();
+        assert!(is_double_click(Some((2, t0)), 2, t0));
+        assert!(!is_double_click(Some((2, t0)), 3, t0));
+        assert!(is_double_click(
+            Some((2, t0)),
+            2,
+            t0 + Duration::from_millis(399)
+        ));
+        assert!(!is_double_click(Some((2, t0)), 2, t0 + DOUBLE_CLICK));
+    }
 }

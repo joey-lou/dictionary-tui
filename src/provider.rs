@@ -133,6 +133,16 @@ pub fn format_pronunciation_display(language: &str, pronunciation: Option<&str>)
     }
 }
 
+/// Xinhua lists each reading of a 多音字 on its own, sorted and searched by that reading.
+fn lists_each_pronunciation(manifest: &PackManifest) -> bool {
+    manifest.id == "xinhua-zh-zh"
+}
+
+/// CC-CEDICT keeps one collapsed record per pronunciation and searches that first entry.
+fn groups_by_pronunciation(manifest: &PackManifest) -> bool {
+    manifest.id == "cc-cedict"
+}
+
 /// Normalize pinyin for sort: base letter + tone digit so a<b<c and 1st<2nd<3rd<4th tone.
 fn pinyin_sort_key(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 4);
@@ -271,7 +281,9 @@ impl LocalProvider {
             raw_entries.push((line_index, entry));
         }
 
-        if manifest.sort == "pinyin" {
+        let each_pronunciation = lists_each_pronunciation(&manifest);
+        let by_pronunciation = groups_by_pronunciation(&manifest);
+        if manifest.sort == "pinyin" && !each_pronunciation && !by_pronunciation {
             let mut primary_key: HashMap<String, String> = HashMap::new();
             for (_, entry) in &raw_entries {
                 let existing = primary_key
@@ -289,6 +301,12 @@ impl LocalProvider {
                     .then_with(|| a.headword.cmp(&b.headword))
                     .then_with(|| pinyin_sort_key(&a.sort_key).cmp(&pinyin_sort_key(&b.sort_key)))
             });
+        } else if manifest.sort == "pinyin" {
+            raw_entries.sort_by(|(_, a), (_, b)| {
+                pinyin_sort_key(&a.sort_key)
+                    .cmp(&pinyin_sort_key(&b.sort_key))
+                    .then_with(|| a.headword.cmp(&b.headword))
+            });
         } else {
             raw_entries.sort_by(|(_, a), (_, b)| {
                 a.sort_key
@@ -301,12 +319,23 @@ impl LocalProvider {
         let mut sorted_line_map = Vec::with_capacity(raw_entries.len());
         let mut root_indices = Vec::new();
         let mut prev_headword: Option<&str> = None;
+        let mut prev_pronunciation: Option<String> = None;
 
         for (i, (line_idx, entry)) in raw_entries.iter().enumerate() {
-            if prev_headword != Some(entry.headword.as_str()) {
+            let pronunciation = by_pronunciation.then(|| pinyin_sort_key(&entry.sort_key));
+            let new_root = if each_pronunciation {
+                true
+            } else if by_pronunciation {
+                prev_headword != Some(entry.headword.as_str())
+                    || prev_pronunciation.as_deref() != pronunciation.as_deref()
+            } else {
+                prev_headword != Some(entry.headword.as_str())
+            };
+            if new_root {
                 root_indices.push(i);
-                prev_headword = Some(entry.headword.as_str());
             }
+            prev_headword = Some(entry.headword.as_str());
+            prev_pronunciation = pronunciation;
             sorted_line_map.push(*line_idx);
             entries.push(entry.clone());
         }
@@ -319,6 +348,19 @@ impl LocalProvider {
             sorted_line_map,
             root_indices,
         })
+    }
+
+    /// CC-CEDICT searches the first entry of each pronunciation. Other packs search every row.
+    fn find_search_entry(&self, mut is_match: impl FnMut(&ListEntry) -> bool) -> Option<u64> {
+        let found = if groups_by_pronunciation(&self.manifest) {
+            self.root_indices
+                .iter()
+                .copied()
+                .find(|&i| is_match(&self.entries[i]))
+        } else {
+            self.entries.iter().position(is_match)
+        };
+        found.map(|i| i as u64)
     }
 }
 
@@ -385,18 +427,14 @@ impl Provider for LocalProvider {
             return Ok(None);
         }
         let found = if self.manifest.language == "zh" {
-            self.entries
-                .iter()
-                .enumerate()
-                .find(|(_, e)| zh_entry_matches_contains(e, query, self.manifest.sort.as_str()))
+            self.find_search_entry(|e| {
+                zh_entry_matches_contains(e, query, self.manifest.sort.as_str())
+            })
         } else {
             let q = query.to_lowercase();
-            self.entries
-                .iter()
-                .enumerate()
-                .find(|(_, e)| e.headword.to_lowercase().contains(&q))
+            self.find_search_entry(|e| e.headword.to_lowercase().contains(&q))
         };
-        Ok(found.map(|(i, _)| i as u64))
+        Ok(found)
     }
 
     fn search_first_prefix(
@@ -407,18 +445,14 @@ impl Provider for LocalProvider {
             return Ok(None);
         }
         let found = if self.manifest.language == "zh" {
-            self.entries
-                .iter()
-                .enumerate()
-                .find(|(_, e)| zh_entry_matches_prefix(e, query, self.manifest.sort.as_str()))
+            self.find_search_entry(|e| {
+                zh_entry_matches_prefix(e, query, self.manifest.sort.as_str())
+            })
         } else {
             let q = query.to_lowercase();
-            self.entries
-                .iter()
-                .enumerate()
-                .find(|(_, e)| e.headword.to_lowercase().starts_with(&q))
+            self.find_search_entry(|e| e.headword.to_lowercase().starts_with(&q))
         };
-        Ok(found.map(|(i, _)| i as u64))
+        Ok(found)
     }
 
     fn list_root_entries(
@@ -562,6 +596,113 @@ mod tests {
         // Search uses plain letters (ignore tone): "san" matches "sān"
         let idx = provider.search_first_prefix("san").expect("search");
         assert!(idx.is_some(), "'san' should match sān");
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn xinhua_polyphone_listed_by_each_pronunciation() {
+        let temp_dir = test_pack_dir().with_extension("xinhua_poly");
+        fs::create_dir_all(&temp_dir).expect("create test dir");
+
+        let manifest_json = r#"{
+            "id": "xinhua-zh-zh",
+            "name": "Xinhua",
+            "language": "zh",
+            "sort": "pinyin",
+            "entry_count": 3,
+            "data_file": "entries.jsonl"
+        }"#;
+        fs::write(temp_dir.join("manifest.json"), manifest_json).expect("write manifest");
+
+        let entries = vec![
+            r#"{"headword":"裞","sort_key":"shuì","pronunciation":"shuì","short_definition":"gift clothes"}"#,
+            r#"{"headword":"三","sort_key":"sān","pronunciation":"sān","short_definition":"three"}"#,
+            r#"{"headword":"裞","sort_key":"ā","pronunciation":"ā","short_definition":"daily character"}"#,
+        ];
+        fs::write(temp_dir.join("entries.jsonl"), entries.join("\n")).expect("write entries");
+
+        let manifest: PackManifest = serde_json::from_str(manifest_json).expect("parse manifest");
+        let provider = LocalProvider::open(&temp_dir, manifest).expect("open pack");
+
+        let all = provider.list_entries(0, 10).expect("list all");
+        assert_eq!(
+            all.iter().map(|e| e.sort_key.as_str()).collect::<Vec<_>>(),
+            vec!["ā", "sān", "shuì"]
+        );
+        assert_eq!(provider.root_count(), 3);
+        assert_eq!(provider.group_size(0), 1);
+        assert_eq!(provider.group_size(2), 1);
+
+        let idx = provider
+            .search_first_prefix("shui")
+            .expect("search")
+            .expect("shui matches");
+        assert_eq!(
+            all[usize::try_from(idx).unwrap()].pronunciation.as_deref(),
+            Some("shuì")
+        );
+        let root = provider.root_index_for_entry(idx);
+        assert_eq!(provider.root_offset_at(root), idx);
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn cedict_polyphone_grouped_by_pronunciation() {
+        let temp_dir = test_pack_dir().with_extension("cedict_poly");
+        fs::create_dir_all(&temp_dir).expect("create test dir");
+
+        let manifest_json = r#"{
+            "id": "cc-cedict",
+            "name": "CEDICT",
+            "language": "zh",
+            "sort": "pinyin",
+            "entry_count": 4,
+            "data_file": "entries.jsonl"
+        }"#;
+        fs::write(temp_dir.join("manifest.json"), manifest_json).expect("write manifest");
+
+        let entries = vec![
+            r#"{"headword":"行","sort_key":"xing2","pronunciation":"xíng","short_definition":"to walk"}"#,
+            r#"{"headword":"行","sort_key":"hang2","pronunciation":"háng","short_definition":"a row"}"#,
+            r#"{"headword":"行","sort_key":"hang2","pronunciation":"háng","short_definition":"profession"}"#,
+            r#"{"headword":"三","sort_key":"san1","pronunciation":"sān","short_definition":"three"}"#,
+        ];
+        fs::write(temp_dir.join("entries.jsonl"), entries.join("\n")).expect("write entries");
+
+        let manifest: PackManifest = serde_json::from_str(manifest_json).expect("parse manifest");
+        let provider = LocalProvider::open(&temp_dir, manifest).expect("open pack");
+
+        let all = provider.list_entries(0, 10).expect("list all");
+        assert_eq!(
+            all.iter().map(|e| e.sort_key.as_str()).collect::<Vec<_>>(),
+            vec!["hang2", "hang2", "san1", "xing2"]
+        );
+        assert_eq!(provider.root_count(), 3);
+        assert_eq!(provider.group_size(0), 2);
+        assert_eq!(provider.group_size(1), 1);
+        assert_eq!(provider.group_size(2), 1);
+
+        let hang = provider
+            .search_first_prefix("hang")
+            .expect("search")
+            .expect("hang matches");
+        assert_eq!(hang, 0);
+        assert_eq!(
+            all[usize::try_from(hang).unwrap()]
+                .short_definition
+                .as_deref(),
+            Some("a row")
+        );
+
+        let xing = provider
+            .search_first_prefix("xing")
+            .expect("search")
+            .expect("xing matches");
+        assert_eq!(all[usize::try_from(xing).unwrap()].sort_key, "xing2");
+        let root = provider.root_index_for_entry(xing);
+        assert_eq!(provider.root_offset_at(root), xing);
 
         let _ = fs::remove_dir_all(&temp_dir);
     }
