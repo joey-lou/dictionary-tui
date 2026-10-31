@@ -120,6 +120,10 @@ release_run_cargo_checks() {
   (cd "$ROOT" && cargo test)
 }
 
+file_size_bytes() {
+  wc -c < "$1" | tr -d '[:space:]'
+}
+
 release_verify_crate_package() {
   local version="$1"
   (cd "$ROOT" && cargo package --allow-dirty --quiet)
@@ -130,7 +134,7 @@ release_verify_crate_package() {
     echo "cargo package did not produce ${glob}" >&2
     exit 1
   fi
-  size="$(stat -c%s "$crate")"
+  size="$(file_size_bytes "$crate")"
   echo "  crate size: ${size} bytes"
   if [[ "$size" -ge 10485760 ]]; then
     echo "Crate too large for crates.io (limit 10 MB)" >&2

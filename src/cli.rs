@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 #[derive(Parser)]
 #[command(
     name = "dictionary-tui",
-    version = concat!(env!("CARGO_PKG_VERSION"), " (", env!("BUILD_GIT_DESCRIBE"), ")"),
+    version = env!("BUILD_VERSION"),
     about,
     arg_required_else_help = false
 )]
