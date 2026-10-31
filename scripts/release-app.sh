@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Bump Cargo.toml, commit on main, tag, and push — rolls back locally on failure.
+# Tag the next app release from the latest v* tag and push it.
+# Cargo.toml stays at 0.0.0-dev; CI writes the tag version before build/publish.
 #
 # Usage:
 #   ./scripts/release-app.sh patch
@@ -13,7 +14,6 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CARGO_TOML="$ROOT/Cargo.toml"
-CARGO_LOCK="$ROOT/Cargo.lock"
 DRY_RUN=false
 WAIT_WORKFLOW=false
 BUMP_KIND=""
@@ -42,9 +42,6 @@ fi
 # shellcheck source=scripts/release-preflight.sh
 source "$ROOT/scripts/release-preflight.sh"
 
-START_SHA=""
-BACKUP_TOML=""
-BACKUP_LOCK=""
 TAG=""
 STATE="none"
 
@@ -56,32 +53,27 @@ rollback() {
   fi
 
   echo "" >&2
-  echo "Release failed — rolling back local changes." >&2
-  case "$STATE" in
-    tagged)
-      git tag -d "$TAG" >/dev/null 2>&1 || true
-      git reset --hard "$START_SHA"
-      ;;
-    committed)
-      git reset --hard "$START_SHA"
-      ;;
-    bumped)
-      cp "$BACKUP_TOML" "$CARGO_TOML"
-      cp "$BACKUP_LOCK" "$CARGO_LOCK"
-      ;;
-  esac
+  echo "Release failed — rolling back the local tag." >&2
+  if [[ "$STATE" == "tagged" ]]; then
+    git tag -d "$TAG" >/dev/null 2>&1 || true
+  fi
   return "$code"
 }
 
 trap rollback EXIT
 
 read_version() {
-  grep -m1 '^version' "$CARGO_TOML" | sed -E 's/version *= *"([^"]+)".*/\1/'
+  local tag
+  tag="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -1)"
+  if [[ -z "$tag" ]]; then
+    echo "No v* release tag found to bump" >&2
+    exit 1
+  fi
+  echo "${tag#v}"
 }
 
-set_version() {
-  local version="$1"
-  sed -i -E "s/^version = \".*\"/version = \"${version}\"/" "$CARGO_TOML"
+crate_version() {
+  grep -m1 '^version' "$CARGO_TOML" | sed -E 's/version *= *"([^"]+)".*/\1/'
 }
 
 bump_version() {
@@ -124,11 +116,6 @@ bump_version() {
 
 main() {
   cd "$ROOT"
-  START_SHA="$(git rev-parse HEAD)"
-  BACKUP_TOML="$(mktemp)"
-  BACKUP_LOCK="$(mktemp)"
-  cp "$CARGO_TOML" "$BACKUP_TOML"
-  cp "$CARGO_LOCK" "$BACKUP_LOCK"
 
   echo "Preflight…"
   release_require_main_clean_synced
@@ -143,12 +130,12 @@ main() {
   release_require_tag_free "$TAG"
   release_require_crates_io_version_free "$new_version"
   release_run_cargo_checks
+  release_verify_crate_package "$(crate_version)"
 
   echo ""
   echo "Release plan:"
-  echo "  Cargo.toml: $current → $new_version"
-  echo "  Tag:        $TAG"
-  echo "  Commit:     ${START_SHA:0:7} → bump commit on main"
+  echo "  Latest tag: v${current} → ${TAG}"
+  echo "  Cargo.toml stays at $(crate_version); CI sets ${new_version} from the tag"
 
   if [[ "$DRY_RUN" == true ]]; then
     echo ""
@@ -157,32 +144,11 @@ main() {
     exit 0
   fi
 
-  set_version "$new_version"
-  STATE="bumped"
-
-  release_verify_crate_package "$new_version"
-
-  git add "$CARGO_TOML" "$CARGO_LOCK"
-  git commit -m "Bump version to ${new_version}."
-  STATE="committed"
-
-  local committed_version
-  committed_version="$(read_version)"
-  if [[ "$committed_version" != "$new_version" ]]; then
-    echo "Internal error: committed version ${committed_version} != ${new_version}" >&2
-    exit 1
-  fi
-
   git tag -a "$TAG" -m "Release ${new_version}"
   STATE="tagged"
 
-  git push origin main
   if ! git push origin "$TAG"; then
-    echo "" >&2
-    echo "Version bump is on origin/main but tag push failed." >&2
-    echo "Fix the issue, then run: git push origin $TAG" >&2
-    echo "To undo the remote bump (only if release workflow has not run):" >&2
-    echo "  git revert HEAD && git push origin main" >&2
+    echo "Tag push failed. The local tag was left in place; delete it with: git tag -d $TAG" >&2
     trap - EXIT
     exit 1
   fi

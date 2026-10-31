@@ -1,7 +1,8 @@
 [package]
 name = "dictionary-tui"
-version = "0.1.2"
+version = "0.0.0-dev"
 edition = "2021"
+build = "build.rs"
 description = "Terminal UI for browsing dictionaries with page flips (English / Chinese)"
 readme = "README.md"
 license = "MIT"

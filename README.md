@@ -103,9 +103,11 @@ Optional: `pre-commit install` (fmt, clippy, tests, `ruff check py/`).
 
 Tag the **latest `main` commit** — [`.github/workflows/release.yml`](.github/workflows/release.yml) routes by prefix. The release workflow re-runs CI (fmt, clippy, tests) before shipping.
 
+`Cargo.toml` on `main` stays at `0.0.0-dev`. For `v*` app releases, the **git tag is the version**. CI rewrites `Cargo.toml` only in the runner before build and publish. Nothing is committed back to `main`.
+
 | Tag | Ships |
 |-----|-------|
-| `v0.1.0` | crates.io + GitHub binaries (Linux/macOS) |
+| `v0.1.2` | crates.io + GitHub binaries (Linux/macOS) |
 | `packs-v1.0.0` | Pack tarballs + `catalog.json` sync to `main` |
 
 **Pre-flight** (also enforced by the release scripts)
@@ -114,17 +116,19 @@ Tag the **latest `main` commit** — [`.github/workflows/release.yml`](.github/w
 2. Rust ≥ 1.88 with `rustfmt` + `clippy` (`rust-toolchain.toml` pins this).
 3. Pack data changed? Re-run `py/ingest_*.py` and commit first.
 
-**App release** — from a clean `main` synced with `origin/main`:
+**App release** — from a clean `main` synced with `origin/main`. The script bumps the latest `v*` tag. It does not change `Cargo.toml`.
 
 ```bash
-./scripts/release-app.sh patch          # 0.1.1 → 0.1.2
+./scripts/release-app.sh patch          # v0.1.2 → v0.1.3
 ./scripts/release-app.sh minor
 ./scripts/release-app.sh 0.2.0
 ./scripts/release-app.sh patch --dry-run
 ./scripts/release-app.sh patch --wait   # optional: watch Release workflow
 ```
 
-Checks before push: CI green on `HEAD`, tag not on origin, version not on crates.io, fmt/clippy/test, crate package size. Commits `Cargo.toml` + `Cargo.lock`, tags `v*`, pushes. Rolls back locally on failure.
+Checks before push: CI green on `HEAD`, tag not on origin, version not on crates.io, fmt/clippy/test, crate package size. Tags `v*` and pushes the tag.
+
+Local dev builds report `0.0.0-dev (<git describe>)` via `--version`.
 
 **Pack release**:
 

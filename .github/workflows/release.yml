@@ -42,19 +42,15 @@ jobs:
             *)        echo "Unsupported tag: ${{ github.ref_name }}"; exit 1 ;;
           esac
 
-      - name: Match v-tag to Cargo.toml version
+      - name: Validate v-tag semver
         if: startsWith(github.ref_name, 'v')
         run: |
-          tag_version="${GITHUB_REF_NAME#v}"
-          if [[ ! "$tag_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
-            echo "App release tags must be semver: vX.Y.Z (got: ${{ github.ref_name }})"
+          VERSION="${GITHUB_REF_NAME#v}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$ ]]; then
+            echo "App tag must be vMAJOR.MINOR.PATCH: ${{ github.ref_name }}"
             exit 1
           fi
-          crate_version=$(grep -m1 '^version' Cargo.toml | sed -E 's/version *= *"([^"]+)".*/\1/')
-          if [ "$tag_version" != "$crate_version" ]; then
-            echo "Tag ${{ github.ref_name }} must match Cargo.toml version ($crate_version)"
-            exit 1
-          fi
+          echo "Release version: $VERSION (CI rewrites Cargo.toml ephemerally; main stays 0.0.0-dev)"
 
   ci:
     needs: validate
@@ -153,6 +149,11 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Set crate version from tag
+        run: |
+          chmod +x scripts/set-crate-version.sh
+          ./scripts/set-crate-version.sh "${GITHUB_REF_NAME#v}"
+
       - name: Build release binary
         run: cargo build --release
 
@@ -209,6 +210,11 @@ jobs:
             echo "Version ${version} is already on crates.io"
             exit 1
           fi
+
+      - name: Set crate version from tag
+        run: |
+          chmod +x scripts/set-crate-version.sh
+          ./scripts/set-crate-version.sh "${GITHUB_REF_NAME#v}"
 
       - name: Publish to crates.io
         run: cargo publish --token "${{ secrets.CARGO_REGISTRY_TOKEN }}"
